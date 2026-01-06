@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+ENV/
+.env
+.env.*
+.env.local
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.o
+*.bin
+
+# Node
+node_modules/
+dist/
+build/
+
+# Coverage
+.coverage
+coverage/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

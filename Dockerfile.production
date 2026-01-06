@@ -1,0 +1,46 @@
+FROM python:3.11-slim
+
+LABEL maintainer="Aura Blockchain Team"
+LABEL description="Production Aura Blockchain Explorer"
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first (for better caching)
+COPY requirements.txt requirements-production.txt ./
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements-production.txt
+
+# Copy application files
+COPY config.py \
+     explorer_backend.py \
+     cosmos_sdk_client.py \
+     tx_decoder.py \
+     indexer.py \
+     websocket_manager.py \
+     cache.py \
+     rate_limiting.py \
+     search_api.py \
+     tracing.py \
+     ./
+
+# Create non-root user
+RUN useradd -m -u 1000 explorer && \
+    chown -R explorer:explorer /app
+
+USER explorer
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:${EXPLORER_PORT:-8082}/health || exit 1
+
+# Default command (can be overridden)
+CMD ["python", "explorer_backend.py"]

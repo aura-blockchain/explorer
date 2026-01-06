@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aura Block Explorer - Devnet</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Devnet Banner -->
+    <div class="devnet-banner">
+        <span class="devnet-badge">DEVNET</span>
+        <span>This is an invite-only development network. Tokens have no value.</span>
+        <a href="https://discord.gg/RwQ8pma6" target="_blank" class="devnet-link">Apply via Discord →</a>
+    </div>
+
+    <header class="explorer-header">
+        <div class="container">
+            <h1>Aura Block Explorer <span class="network-badge">Devnet</span></h1>
+            <nav>
+                <a href="#blocks">Blocks</a>
+                <a href="#transactions">Transactions</a>
+                <a href="#validators">Validators</a>
+                <a href="#governance">Governance</a>
+                <a href="#staking">Staking</a>
+                <a href="#analytics">Analytics</a>
+                <a href="#resources">Resources</a>
+                <a href="/api/docs" target="_blank">API Docs</a>
+                <a href="https://aurablockchain.org" target="_blank">Main Site</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="search-section">
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="Search by block height, tx hash, or address...">
+                <button id="searchBtn">Search</button>
+            </div>
+            <div class="quick-stats">
+                <div class="stat-card">
+                    <div class="stat-label">Latest Block</div>
+                    <div class="stat-value" id="latestBlock">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Avg Block Time</div>
+                    <div class="stat-value" id="avgBlockTime">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Transactions</div>
+                    <div class="stat-value" id="totalTxs">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Active Validators</div>
+                    <div class="stat-value" id="activeValidators">-</div>
+                </div>
+            </div>
+        </section>
+
+        <section id="blocks" class="data-section">
+            <div class="section-header">
+                <h2>Recent Blocks</h2>
+                <div class="section-controls">
+                    <label>
+                        <input type="checkbox" id="autoRefresh" checked>
+                        Auto-refresh
+                    </label>
+                    <button id="refreshBlocks">Refresh</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Height</th>
+                            <th>Hash</th>
+                            <th>Time</th>
+                            <th>Proposer</th>
+                            <th>Txs</th>
+                            <th>Size</th>
+                        </tr>
+                    </thead>
+                    <tbody id="blocksTable">
+                        <tr><td colspan="6">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="pagination">
+                <button id="prevBlocks">Previous</button>
+                <span id="blockPage">Page 1</span>
+                <button id="nextBlocks">Next</button>
+            </div>
+        </section>
+
+        <section id="transactions" class="data-section">
+            <div class="section-header">
+                <h2>Recent Transactions</h2>
+                <div class="filter-controls">
+                    <select id="txTypeFilter">
+                        <option value="">All Types</option>
+                        <option value="send">Send</option>
+                        <option value="delegate">Delegate</option>
+                        <option value="vote">Vote</option>
+                    </select>
+                    <select id="txStatusFilter">
+                        <option value="">All Status</option>
+                        <option value="success">Success</option>
+                        <option value="failed">Failed</option>
+                    </select>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Hash</th>
+                            <th>Block</th>
+                            <th>Type</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="txsTable">
+                        <tr><td colspan="8">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="pagination">
+                <button id="prevTxs">Previous</button>
+                <span id="txPage">Page 1</span>
+                <button id="nextTxs">Next</button>
+            </div>
+        </section>
+
+        <section id="validators" class="data-section">
+            <div class="section-header">
+                <h2>Validator Set</h2>
+                <div class="section-controls">
+                    <select id="validatorSort">
+                        <option value="voting_power">Voting Power</option>
+                        <option value="uptime">Uptime</option>
+                        <option value="commission">Commission</option>
+                    </select>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Validator</th>
+                            <th>Voting Power</th>
+                            <th>Commission</th>
+                            <th>Uptime</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="validatorsTable">
+                        <tr><td colspan="6">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="governance" class="data-section">
+            <div class="section-header">
+                <h2>Governance Proposals</h2>
+                <div class="filter-controls">
+                    <select id="proposalStatusFilter">
+                        <option value="">All Proposals</option>
+                        <option value="voting">Voting</option>
+                        <option value="deposit">Deposit Period</option>
+                        <option value="passed">Passed</option>
+                        <option value="rejected">Rejected</option>
+                    </select>
+                    <button id="refreshProposals">Refresh</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Voting End</th>
+                            <th>Results</th>
+                        </tr>
+                    </thead>
+                    <tbody id="proposalsTable">
+                        <tr><td colspan="6">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="pagination">
+                <button id="prevProposals">Previous</button>
+                <span id="proposalPage">Page 1</span>
+                <button id="nextProposals">Next</button>
+            </div>
+        </section>
+
+        <!-- Proposal Detail Modal -->
+        <div id="proposalModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modalProposalTitle">Proposal Details</h3>
+                    <button class="modal-close" onclick="explorer.closeProposalModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="proposalDetails"></div>
+                    <div id="voteBreakdown" class="vote-breakdown"></div>
+                    <div id="proposalVotes" class="votes-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <section id="staking" class="data-section">
+            <div class="section-header">
+                <h2>Staking Overview</h2>
+            </div>
+            <div class="staking-stats">
+                <div class="stat-card">
+                    <div class="stat-label">Total Bonded</div>
+                    <div class="stat-value" id="totalBonded">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Not Bonded</div>
+                    <div class="stat-value" id="totalNotBonded">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Bonded Ratio</div>
+                    <div class="stat-value" id="bondedRatio">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Unbonding Period</div>
+                    <div class="stat-value" id="unbondingPeriod">-</div>
+                </div>
+            </div>
+            <div class="staking-lookup">
+                <h3>Check Delegations</h3>
+                <div class="search-bar">
+                    <input type="text" id="stakingAddressInput" placeholder="Enter address to check delegations...">
+                    <button id="lookupStakingBtn">Lookup</button>
+                </div>
+            </div>
+            <div id="stakingResults" class="staking-results" style="display: none;">
+                <div class="staking-summary">
+                    <div class="summary-card">
+                        <h4>Total Staked</h4>
+                        <p id="userTotalStaked">-</p>
+                    </div>
+                    <div class="summary-card">
+                        <h4>Unbonding</h4>
+                        <p id="userUnbonding">-</p>
+                    </div>
+                    <div class="summary-card">
+                        <h4>Pending Rewards</h4>
+                        <p id="userRewards">-</p>
+                    </div>
+                </div>
+                <div class="delegations-table">
+                    <h4>Active Delegations</h4>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Validator</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="delegationsTable">
+                            <tr><td colspan="2">No delegations</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="analytics" class="data-section">
+            <div class="section-header">
+                <h2>Network Analytics</h2>
+            </div>
+            <div class="analytics-grid">
+                <div class="chart-container">
+                    <h3>Block Production Rate</h3>
+                    <canvas id="blockRateChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Transaction Volume</h3>
+                    <canvas id="txVolumeChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Validator Distribution</h3>
+                    <canvas id="validatorDistChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Gas Usage</h3>
+                    <canvas id="gasUsageChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Resources Section -->
+        <section id="resources" class="data-section resources-section">
+            <div class="section-header">
+                <h2>Devnet Resources</h2>
+            </div>
+            <div class="resources-grid">
+                <div class="resource-card">
+                    <h3>Artifacts & Binaries</h3>
+                    <p>Pre-built binaries and configuration files</p>
+                    <a href="https://artifacts.aurablockchain.org" target="_blank" class="resource-link">Download Artifacts →</a>
+                </div>
+                <div class="resource-card">
+                    <h3>Faucet</h3>
+                    <p>Get test tokens to interact with the network</p>
+                    <a href="/faucet" class="resource-link">Request Tokens →</a>
+                </div>
+                <div class="resource-card">
+                    <h3>Network Status</h3>
+                    <p>Real-time metrics and monitoring dashboard</p>
+                    <a href="https://grafana.aurablockchain.org" target="_blank" class="resource-link">View Dashboard →</a>
+                </div>
+                <div class="resource-card">
+                    <h3>API Documentation</h3>
+                    <p>REST and gRPC API reference</p>
+                    <a href="/swagger" target="_blank" class="resource-link">API Docs →</a>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="explorer-footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <h3>AURA Blockchain</h3>
+                    <p>Verifiable AI Compute on Chain</p>
+                </div>
+                <div class="footer-links">
+                    <a href="https://github.com/aura-blockchain" target="_blank">GitHub</a>
+                    <a href="https://discord.gg/RwQ8pma6" target="_blank">Discord</a>
+                    <a href="https://twitter.com/AURABlockchain" target="_blank">Twitter</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>Chain ID: aura-testnet-1 | Network: Devnet</p>
+            </div>
+        </div>
+    </footer>
+
+    <div id="wsStatus" class="ws-indicator">
+        <span class="ws-dot"></span>
+        <span class="ws-text">Connecting...</span>
+    </div>
+
+    <script src="explorer.js"></script>
+    <script src="websocket-handler.js"></script>
+</body>
+</html>

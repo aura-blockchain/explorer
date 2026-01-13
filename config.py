@@ -16,7 +16,7 @@ class Config:
     NODE_GRPC_URL = os.getenv("NODE_GRPC_URL", "localhost:9090")
 
     # AURA Chain Configuration
-    CHAIN_ID = os.getenv("CHAIN_ID", "aura-testnet-1")
+    CHAIN_ID = os.getenv("CHAIN_ID", "aura-mvp-1")
     DENOM = os.getenv("DENOM", "uaura")
     DENOM_DECIMALS = int(os.getenv("DENOM_DECIMALS", "6"))
 

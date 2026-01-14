@@ -1,0 +1,28 @@
+{
+  "chain_name": "aura",
+  "api": [
+    "https://testnet-api.aurablockchain.org",
+    "https://testnet-api-2.aurablockchain.org"
+  ],
+  "rpc": [
+    "https://testnet-rpc.aurablockchain.org",
+    "https://testnet-rpc-2.aurablockchain.org"
+  ],
+  "snapshot_provider": "",
+  "sdk_version": "0.50.9",
+  "coin_type": "118",
+  "min_tx_fee": "2000",
+  "addr_prefix": "aura",
+  "logo": "/logos/aura.svg",
+  "theme_color": "#6366f1",
+  "assets": [
+    {
+      "base": "uaura",
+      "symbol": "AURA",
+      "exponent": "6",
+      "coingecko_id": "",
+      "logo": "/logos/aura.svg"
+    }
+  ],
+  "registry_name": "aura-mvp-1"
+}

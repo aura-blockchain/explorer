@@ -29,12 +29,20 @@ try:
     from config import config
 except ImportError:
     # Fallback if config not available
+    # -------------------------------------------------------------------------
+    # PORT SENTINEL REQUIRED FOR PRODUCTION: These are development fallback
+    # defaults only. For production deployments, ports MUST be allocated via
+    # Port Sentinel to prevent conflicts:
+    #   python scripts/port_sentinel.py allocate explorer_rpc --project aura
+    #   python scripts/port_sentinel.py allocate explorer_api --project aura
+    # Then set NODE_RPC_URL, NODE_API_URL environment variables.
+    # -------------------------------------------------------------------------
     class config:
-        NODE_RPC_URL = os.getenv("NODE_RPC_URL", "http://localhost:26657")
-        NODE_API_URL = os.getenv("NODE_API_URL", "http://localhost:1317")
+        NODE_RPC_URL = os.getenv("NODE_RPC_URL", "http://localhost:26657")  # DEV ONLY default
+        NODE_API_URL = os.getenv("NODE_API_URL", "http://localhost:1317")   # DEV ONLY default
         CHAIN_ID = os.getenv("CHAIN_ID", "aura-testnet-1")
         DENOM = os.getenv("DENOM", "uaura")
-        EXPLORER_PORT = int(os.getenv("EXPLORER_PORT", "8082"))
+        EXPLORER_PORT = int(os.getenv("EXPLORER_PORT", "8082"))  # DEV ONLY default
         EXPLORER_HOST = os.getenv("EXPLORER_HOST", "0.0.0.0")
         DB_PATH = os.getenv("EXPLORER_DB_PATH", "./explorer.db")
         DEBUG = os.getenv("DEBUG", "false").lower() == "true"
@@ -4417,51 +4425,206 @@ def get_metric_history(metric_type):
 @app.route("/health", methods=["GET"])
 def health_check():
     """
-    Health check
+    Comprehensive health check (Kubernetes-compatible)
     ---
     tags:
       - Health
     responses:
       200:
-        description: Health status
+        description: Health status (healthy)
         schema:
           type: object
           properties:
             status:
               type: string
-              description: Overall health status (healthy/degraded)
-            explorer:
+              description: Overall health status (healthy/degraded/unhealthy)
+            version:
               type: string
-              description: Explorer service status
+              description: Explorer API version
+            chain_id:
+              type: string
+              description: Connected chain ID
+            explorer:
+              type: object
+              properties:
+                status:
+                  type: string
+                  description: Explorer service status
+                uptime_seconds:
+                  type: number
+                  description: Service uptime in seconds
             node:
               type: object
               properties:
                 reachable:
                   type: boolean
                   description: Whether blockchain node is reachable
-                rpc:
+                synced:
+                  type: boolean
+                  description: Whether node is fully synced
+                latest_block_height:
+                  type: integer
+                  description: Latest block height
+                catching_up:
+                  type: boolean
+                  description: Whether node is catching up
+                rpc_url:
                   type: string
                   description: RPC URL
+            checks:
+              type: object
+              description: Individual health check results
             timestamp:
-              type: number
-              description: Unix timestamp
+              type: string
+              description: ISO 8601 timestamp
+      503:
+        description: Service unhealthy
     """
-    try:
-        response = requests.get(f"{NODE_URL}/health", timeout=10)
-        node_status = response.status_code == 200
-    except Exception as e:
-        logger.warning(f"RPC health degraded: {e}")
-        node_status = False
+    checks = {
+        "rpc_connection": False,
+        "node_synced": False,
+        "database_accessible": False
+    }
+    node_info = {
+        "reachable": False,
+        "synced": False,
+        "latest_block_height": 0,
+        "catching_up": True,
+        "rpc_url": NODE_URL
+    }
 
-    status = "healthy" if node_status else "degraded"
+    # Check RPC connection and sync status
+    try:
+        response = requests.get(f"{NODE_URL}/status", timeout=10)
+        if response.status_code == 200:
+            checks["rpc_connection"] = True
+            status_data = response.json()
+            sync_info = status_data.get("result", {}).get("sync_info", {})
+            node_info["reachable"] = True
+            node_info["latest_block_height"] = int(sync_info.get("latest_block_height", 0))
+            node_info["catching_up"] = sync_info.get("catching_up", True)
+            node_info["synced"] = not node_info["catching_up"]
+            checks["node_synced"] = node_info["synced"]
+    except Exception as e:
+        logger.warning(f"RPC health check failed: {e}")
+
+    # Check database accessibility
+    try:
+        db.get_stats()
+        checks["database_accessible"] = True
+    except Exception as e:
+        logger.warning(f"Database health check failed: {e}")
+
+    # Determine overall status based on checks
+    critical_checks = ["rpc_connection"]
+    warning_checks = ["node_synced", "database_accessible"]
+
+    critical_failed = any(not checks[c] for c in critical_checks)
+    warning_failed = any(not checks[c] for c in warning_checks)
+
+    if critical_failed:
+        status = "unhealthy"
+        http_status = 503
+    elif warning_failed:
+        status = "degraded"
+        http_status = 200
+    else:
+        status = "healthy"
+        http_status = 200
+
+    # Calculate uptime
+    uptime_seconds = time.time() - app.config.get("start_time", time.time())
+
     return jsonify({
         "status": status,
-        "explorer": "running",
-        "node": {
-            "reachable": node_status,
-            "rpc": NODE_URL
+        "version": "2.0.0",
+        "chain_id": config.CHAIN_ID,
+        "explorer": {
+            "status": "running",
+            "uptime_seconds": round(uptime_seconds, 2)
         },
-        "timestamp": time.time()
+        "node": node_info,
+        "checks": checks,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }), http_status
+
+
+@app.route("/ready", methods=["GET"])
+def readiness_check():
+    """
+    Kubernetes readiness probe - indicates service can accept traffic
+    ---
+    tags:
+      - Health
+    responses:
+      200:
+        description: Service is ready to accept traffic
+        schema:
+          type: object
+          properties:
+            ready:
+              type: boolean
+            checks:
+              type: object
+            timestamp:
+              type: string
+      503:
+        description: Service not ready
+    """
+    checks = {
+        "rpc_reachable": False,
+        "database_ready": False
+    }
+
+    # Check RPC is reachable (doesn't need to be synced for readiness)
+    try:
+        response = requests.get(f"{NODE_URL}/health", timeout=5)
+        checks["rpc_reachable"] = response.status_code == 200
+    except Exception:
+        pass
+
+    # Check database is accessible
+    try:
+        db.get_stats()
+        checks["database_ready"] = True
+    except Exception:
+        pass
+
+    is_ready = all(checks.values())
+    http_status = 200 if is_ready else 503
+
+    return jsonify({
+        "ready": is_ready,
+        "checks": checks,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }), http_status
+
+
+@app.route("/live", methods=["GET"])
+def liveness_check():
+    """
+    Kubernetes liveness probe - indicates service is alive
+    ---
+    tags:
+      - Health
+    responses:
+      200:
+        description: Service is alive
+        schema:
+          type: object
+          properties:
+            alive:
+              type: boolean
+            uptime_seconds:
+              type: number
+            timestamp:
+              type: string
+    """
+    uptime_seconds = time.time() - app.config.get("start_time", time.time())
+    return jsonify({
+        "alive": True,
+        "uptime_seconds": round(uptime_seconds, 2),
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }), 200
 
 
@@ -4529,6 +4692,8 @@ def explorer_info():
             "export": "/api/export/*",
             "websocket": "/api/ws/updates",
             "health": "/health",
+            "ready": "/ready",
+            "live": "/live",
             "governance": "/api/governance/*",
             "staking": "/api/staking/*",
             "swagger_docs": "/api/docs",
@@ -4540,6 +4705,9 @@ def explorer_info():
 
 
 if __name__ == "__main__":
+    # Record start time for uptime tracking
+    app.config["start_time"] = time.time()
+
     logger.info(f"Starting AURA Block Explorer")
     logger.info(f"Chain ID: {config.CHAIN_ID}")
     logger.info(f"Node RPC URL: {NODE_URL}")

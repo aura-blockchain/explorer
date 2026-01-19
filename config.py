@@ -11,9 +11,18 @@ class Config:
     """Base configuration"""
 
     # AURA Node Configuration
-    NODE_RPC_URL = os.getenv("NODE_RPC_URL", "http://localhost:26657")
-    NODE_API_URL = os.getenv("NODE_API_URL", "http://localhost:1317")
-    NODE_GRPC_URL = os.getenv("NODE_GRPC_URL", "localhost:9090")
+    # -------------------------------------------------------------------------
+    # PORT SENTINEL REQUIRED FOR PRODUCTION: These are development fallback
+    # defaults only. For production deployments, ports MUST be allocated via
+    # Port Sentinel to prevent conflicts:
+    #   python scripts/port_sentinel.py allocate explorer_rpc --project aura
+    #   python scripts/port_sentinel.py allocate explorer_api --project aura
+    #   python scripts/port_sentinel.py allocate explorer_grpc --project aura
+    # Then set NODE_RPC_URL, NODE_API_URL, NODE_GRPC_URL environment variables.
+    # -------------------------------------------------------------------------
+    NODE_RPC_URL = os.getenv("NODE_RPC_URL", "http://localhost:26657")  # DEV ONLY default
+    NODE_API_URL = os.getenv("NODE_API_URL", "http://localhost:1317")   # DEV ONLY default
+    NODE_GRPC_URL = os.getenv("NODE_GRPC_URL", "localhost:9090")        # DEV ONLY default
 
     # AURA Chain Configuration
     CHAIN_ID = os.getenv("CHAIN_ID", "aura-mvp-1")

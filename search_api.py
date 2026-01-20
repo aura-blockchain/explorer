@@ -4,13 +4,14 @@ Supports searching by address, hash, height, module, and more
 """
 
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
 
 
 class SearchCategory(Enum):
     """Search result categories"""
+
     BLOCK = "block"
     TRANSACTION = "transaction"
     ADDRESS = "address"
@@ -22,6 +23,7 @@ class SearchCategory(Enum):
 @dataclass
 class SearchResult:
     """Unified search result"""
+
     category: SearchCategory
     id: str
     title: str
@@ -102,14 +104,16 @@ class AdvancedSearch:
         }
 
         # Get transactions involving this address
-        query = """
+        cursor = self.db.conn.cursor()
+        cursor.execute(
+            """
             SELECT * FROM transactions
             WHERE sender = ? OR recipient = ?
             ORDER BY timestamp DESC
             LIMIT 100
-        """
-
-        cursor = self.db.conn.cursor()
+            """,
+            (address, address),
+        )
         rows = cursor.fetchall()
 
         for row in rows:

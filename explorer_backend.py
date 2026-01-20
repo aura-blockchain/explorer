@@ -12,8 +12,7 @@ import sqlite3
 import threading
 import time
 from collections import defaultdict, deque
-from datetime import datetime, timedelta, timezone
-from functools import lru_cache
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, Set
 from dataclasses import dataclass, field, asdict
 from enum import Enum
@@ -38,8 +37,12 @@ except ImportError:
     # Then set NODE_RPC_URL, NODE_API_URL environment variables.
     # -------------------------------------------------------------------------
     class config:
-        NODE_RPC_URL = os.getenv("NODE_RPC_URL", "http://localhost:26657")  # DEV ONLY default
-        NODE_API_URL = os.getenv("NODE_API_URL", "http://localhost:1317")   # DEV ONLY default
+        NODE_RPC_URL = os.getenv(
+            "NODE_RPC_URL", "http://localhost:26657"
+        )  # DEV ONLY default
+        NODE_API_URL = os.getenv(
+            "NODE_API_URL", "http://localhost:1317"
+        )  # DEV ONLY default
         CHAIN_ID = os.getenv("CHAIN_ID", "aura-testnet-1")
         DENOM = os.getenv("DENOM", "uaura")
         EXPLORER_PORT = int(os.getenv("EXPLORER_PORT", "8082"))  # DEV ONLY default
@@ -49,18 +52,18 @@ except ImportError:
         LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
         LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
+
 # Configure logging
-logging.basicConfig(
-    level=getattr(logging, config.LOG_LEVEL),
-    format=config.LOG_FORMAT
-)
+logging.basicConfig(level=getattr(logging, config.LOG_LEVEL), format=config.LOG_FORMAT)
 logger = logging.getLogger(__name__)
 
 
 # ==================== DATA MODELS ====================
 
+
 class SearchType(Enum):
     """Types of searchable items"""
+
     BLOCK_HEIGHT = "block_height"
     BLOCK_HASH = "block_hash"
     TRANSACTION_ID = "transaction_id"
@@ -71,6 +74,7 @@ class SearchType(Enum):
 @dataclass
 class SearchResult:
     """Search result data"""
+
     type: SearchType
     item_id: str
     data: Dict[str, Any]
@@ -80,6 +84,7 @@ class SearchResult:
 @dataclass
 class AddressLabel:
     """Address labeling system"""
+
     address: str
     label: str
     category: str  # exchange, pool, whale, contract, etc.
@@ -90,12 +95,14 @@ class AddressLabel:
 @dataclass
 class CachedMetric:
     """Cached metric data"""
+
     timestamp: float
     data: Dict[str, Any]
     ttl: int = 300  # 5 minutes default
 
 
 # ==================== DATABASE MANAGEMENT ====================
+
 
 class ExplorerDatabase:
     """SQLite database for explorer data with indexing"""
@@ -114,7 +121,8 @@ class ExplorerDatabase:
             cursor = self.conn.cursor()
 
             # Search history table
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS search_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     query TEXT NOT NULL,
@@ -123,12 +131,18 @@ class ExplorerDatabase:
                     timestamp REAL NOT NULL,
                     result_found BOOLEAN DEFAULT 0
                 )
-            """)
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_search_query ON search_history(query)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_search_timestamp ON search_history(timestamp)")
+            """
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_search_query ON search_history(query)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_search_timestamp ON search_history(timestamp)"
+            )
 
             # Address labels table
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS address_labels (
                     address TEXT PRIMARY KEY,
                     label TEXT NOT NULL,
@@ -136,11 +150,15 @@ class ExplorerDatabase:
                     description TEXT,
                     created_at REAL NOT NULL
                 )
-            """)
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_address_label ON address_labels(label)")
+            """
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_address_label ON address_labels(label)"
+            )
 
             # Analytics table
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS analytics (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     metric_type TEXT NOT NULL,
@@ -148,18 +166,25 @@ class ExplorerDatabase:
                     value REAL NOT NULL,
                     data TEXT
                 )
-            """)
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_metric_type ON analytics(metric_type)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_metric_timestamp ON analytics(timestamp)")
+            """
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_metric_type ON analytics(metric_type)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_metric_timestamp ON analytics(timestamp)"
+            )
 
             # Block explorer cache
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS explorer_cache (
                     key TEXT PRIMARY KEY,
                     value TEXT NOT NULL,
                     ttl REAL NOT NULL
                 )
-            """)
+            """
+            )
 
             self.conn.commit()
             logger.info("Database initialized successfully")
@@ -167,15 +192,24 @@ class ExplorerDatabase:
             logger.error(f"Database initialization error: {e}")
             raise
 
-    def add_search(self, query: str, search_type: str, result_found: bool, user_id: str = "anonymous") -> None:
+    def add_search(
+        self,
+        query: str,
+        search_type: str,
+        result_found: bool,
+        user_id: str = "anonymous",
+    ) -> None:
         """Record search query"""
         try:
             with self.lock:
                 cursor = self.conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT INTO search_history (query, search_type, user_id, timestamp, result_found)
                     VALUES (?, ?, ?, ?, ?)
-                """, (query, search_type, user_id, time.time(), int(result_found)))
+                """,
+                    (query, search_type, user_id, time.time(), int(result_found)),
+                )
                 self.conn.commit()
         except Exception as e:
             logger.error(f"Error recording search: {e}")
@@ -185,12 +219,15 @@ class ExplorerDatabase:
         try:
             with self.lock:
                 cursor = self.conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT query, search_type, timestamp
                     FROM search_history
                     ORDER BY timestamp DESC
                     LIMIT ?
-                """, (limit,))
+                """,
+                    (limit,),
+                )
                 return [
                     {"query": row[0], "type": row[1], "timestamp": row[2]}
                     for row in cursor.fetchall()
@@ -204,10 +241,19 @@ class ExplorerDatabase:
         try:
             with self.lock:
                 cursor = self.conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT OR REPLACE INTO address_labels (address, label, category, description, created_at)
                     VALUES (?, ?, ?, ?, ?)
-                """, (label.address, label.label, label.category, label.description, label.created_at))
+                """,
+                    (
+                        label.address,
+                        label.label,
+                        label.category,
+                        label.description,
+                        label.created_at,
+                    ),
+                )
                 self.conn.commit()
         except Exception as e:
             logger.error(f"Error adding label: {e}")
@@ -217,11 +263,14 @@ class ExplorerDatabase:
         try:
             with self.lock:
                 cursor = self.conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT address, label, category, description, created_at
                     FROM address_labels
                     WHERE address = ?
-                """, (address,))
+                """,
+                    (address,),
+                )
                 row = cursor.fetchone()
                 if row:
                     return AddressLabel(*row)
@@ -229,15 +278,25 @@ class ExplorerDatabase:
             logger.error(f"Error fetching label: {e}")
         return None
 
-    def record_metric(self, metric_type: str, value: float, data: Optional[Dict] = None) -> None:
+    def record_metric(
+        self, metric_type: str, value: float, data: Optional[Dict] = None
+    ) -> None:
         """Record analytics metric"""
         try:
             with self.lock:
                 cursor = self.conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT INTO analytics (metric_type, timestamp, value, data)
                     VALUES (?, ?, ?, ?)
-                """, (metric_type, time.time(), value, json.dumps(data) if data else None))
+                """,
+                    (
+                        metric_type,
+                        time.time(),
+                        value,
+                        json.dumps(data) if data else None,
+                    ),
+                )
                 self.conn.commit()
         except Exception as e:
             logger.error(f"Error recording metric: {e}")
@@ -248,14 +307,21 @@ class ExplorerDatabase:
             with self.lock:
                 cursor = self.conn.cursor()
                 cutoff_time = time.time() - (hours * 3600)
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT timestamp, value, data
                     FROM analytics
                     WHERE metric_type = ? AND timestamp > ?
                     ORDER BY timestamp ASC
-                """, (metric_type, cutoff_time))
+                """,
+                    (metric_type, cutoff_time),
+                )
                 return [
-                    {"timestamp": row[0], "value": row[1], "data": json.loads(row[2]) if row[2] else None}
+                    {
+                        "timestamp": row[0],
+                        "value": row[1],
+                        "data": json.loads(row[2]) if row[2] else None,
+                    }
                     for row in cursor.fetchall()
                 ]
         except Exception as e:
@@ -267,10 +333,13 @@ class ExplorerDatabase:
         try:
             with self.lock:
                 cursor = self.conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT OR REPLACE INTO explorer_cache (key, value, ttl)
                     VALUES (?, ?, ?)
-                """, (key, value, time.time() + ttl))
+                """,
+                    (key, value, time.time() + ttl),
+                )
                 self.conn.commit()
         except Exception as e:
             logger.error(f"Error setting cache: {e}")
@@ -280,10 +349,13 @@ class ExplorerDatabase:
         try:
             with self.lock:
                 cursor = self.conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT value FROM explorer_cache
                     WHERE key = ? AND ttl > ?
-                """, (key, time.time()))
+                """,
+                    (key, time.time()),
+                )
                 row = cursor.fetchone()
                 return row[0] if row else None
         except Exception as e:
@@ -292,6 +364,7 @@ class ExplorerDatabase:
 
 
 # ==================== ANALYTICS ENGINE ====================
+
 
 class AnalyticsEngine:
     """Real-time analytics and metrics collection"""
@@ -304,7 +377,9 @@ class AnalyticsEngine:
         self.lock = threading.RLock()
 
         # Time-series data for recent metrics
-        self.hashrate_history: deque = deque(maxlen=1440)  # 24 hours at 1-minute intervals
+        self.hashrate_history: deque = deque(
+            maxlen=1440
+        )  # 24 hours at 1-minute intervals
         self.tx_volume_history: deque = deque(maxlen=1440)
         self.active_addresses: Set[str] = set()
         self.mempool_sizes: deque = deque(maxlen=1440)
@@ -333,7 +408,7 @@ class AnalyticsEngine:
                 "difficulty": difficulty,
                 "block_height": current_height,
                 "unit": "hashes/second",
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
 
             self.db.set_cache(cache_key, json.dumps(result))
@@ -381,7 +456,7 @@ class AnalyticsEngine:
                 "unique_transactions": len(unique_txs),
                 "average_tx_per_block": avg_tx_per_block,
                 "total_fees_collected": fees_collected,
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
 
             self.db.set_cache(cache_key, json.dumps(result))
@@ -415,7 +490,7 @@ class AnalyticsEngine:
 
             result = {
                 "total_unique_addresses": len(addresses),
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
 
             self.db.set_cache(cache_key, json.dumps(result))
@@ -438,8 +513,7 @@ class AnalyticsEngine:
                 return {"error": "Unable to fetch blocks"}
 
             blocks = sorted(
-                blocks_data.get("blocks", []),
-                key=lambda b: b.get("timestamp", 0)
+                blocks_data.get("blocks", []), key=lambda b: b.get("timestamp", 0)
             )
 
             if len(blocks) < 2:
@@ -447,7 +521,9 @@ class AnalyticsEngine:
 
             block_times = []
             for i in range(1, len(blocks)):
-                time_diff = blocks[i].get("timestamp", 0) - blocks[i-1].get("timestamp", 0)
+                time_diff = blocks[i].get("timestamp", 0) - blocks[i - 1].get(
+                    "timestamp", 0
+                )
                 if time_diff > 0:
                     block_times.append(time_diff)
 
@@ -456,7 +532,7 @@ class AnalyticsEngine:
             result = {
                 "average_block_time_seconds": avg_block_time,
                 "blocks_sampled": len(block_times),
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
 
             self.db.set_cache(cache_key, json.dumps(result))
@@ -492,7 +568,7 @@ class AnalyticsEngine:
                 "total_value": total_value,
                 "total_fees": total_fees,
                 "avg_fee": total_fees / pending_count if pending_count > 0 else 0,
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
 
             self.db.set_cache(cache_key, json.dumps(result))
@@ -511,10 +587,7 @@ class AnalyticsEngine:
 
             difficulty = stats.get("difficulty", 0)
 
-            result = {
-                "current_difficulty": difficulty,
-                "timestamp": time.time()
-            }
+            result = {"current_difficulty": difficulty, "timestamp": time.time()}
 
             self.db.record_metric("network_difficulty", difficulty)
             return result
@@ -535,19 +608,20 @@ class AnalyticsEngine:
                 return {
                     "total_blocks": int(last_height),
                     "difficulty": 0,  # PoS chains don't have difficulty
-                    "last_height": int(last_height)
+                    "last_height": int(last_height),
                 }
         except Exception as e:
             logger.error(f"Error fetching stats: {e}")
         return None
 
-    def _fetch_blocks(self, limit: int = 100, offset: int = 0) -> Optional[Dict[str, Any]]:
+    def _fetch_blocks(
+        self, limit: int = 100, offset: int = 0
+    ) -> Optional[Dict[str, Any]]:
         """Fetch blocks from Cosmos SDK node"""
         try:
             # Get latest blockchain info
             blockchain_response = requests.get(
-                f"{self.node_url}/blockchain?minHeight=1&maxHeight={limit}",
-                timeout=30
+                f"{self.node_url}/blockchain?minHeight=1&maxHeight={limit}", timeout=30
             )
             blockchain_response.raise_for_status()
             data = blockchain_response.json()
@@ -560,16 +634,18 @@ class AnalyticsEngine:
                     try:
                         dt = datetime.fromisoformat(block_time.replace("Z", "+00:00"))
                         timestamp = dt.timestamp()
-                    except:
+                    except Exception:
                         timestamp = time.time()
 
-                    blocks.append({
-                        "height": int(meta["header"]["height"]),
-                        "hash": meta.get("block_id", {}).get("hash", ""),
-                        "timestamp": timestamp,
-                        "num_txs": int(meta["num_txs"]),
-                        "transactions": []  # Would need separate queries
-                    })
+                    blocks.append(
+                        {
+                            "height": int(meta["header"]["height"]),
+                            "hash": meta.get("block_id", {}).get("hash", ""),
+                            "timestamp": timestamp,
+                            "num_txs": int(meta["num_txs"]),
+                            "transactions": [],  # Would need separate queries
+                        }
+                    )
 
             return {"blocks": blocks, "count": len(blocks)}
         except Exception as e:
@@ -578,6 +654,7 @@ class AnalyticsEngine:
 
 
 # ==================== SEARCH ENGINE ====================
+
 
 class SearchEngine:
     """Advanced search with autocomplete and history"""
@@ -597,7 +674,7 @@ class SearchEngine:
             "query": query,
             "type": search_type.value,
             "results": None,
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
 
         try:
@@ -626,8 +703,7 @@ class SearchEngine:
         try:
             recent = self.db.get_recent_searches(limit * 2)
             suggestions = [
-                item["query"] for item in recent
-                if item["query"].startswith(prefix)
+                item["query"] for item in recent if item["query"].startswith(prefix)
             ]
             return suggestions[:limit]
         except Exception as e:
@@ -648,7 +724,7 @@ class SearchEngine:
             return SearchType.ADDRESS
 
         # Cosmos SDK transaction hashes are uppercase hex strings
-        if len(query) == 64 and all(c in '0123456789abcdefABCDEF' for c in query):
+        if len(query) == 64 and all(c in "0123456789abcdefABCDEF" for c in query):
             return SearchType.TRANSACTION_ID
 
         # Block hash format
@@ -662,8 +738,7 @@ class SearchEngine:
         try:
             # Use Cosmos SDK RPC endpoint
             response = requests.get(
-                f"{self.node_url}/block?height={height}",
-                timeout=15
+                f"{self.node_url}/block?height={height}", timeout=15
             )
             if response.status_code == 200:
                 data = response.json()
@@ -671,11 +746,13 @@ class SearchEngine:
                     block = data["result"]["block"]
                     return {
                         "height": block["header"]["height"],
-                        "hash": block["header"].get("last_block_id", {}).get("hash", ""),
+                        "hash": block["header"]
+                        .get("last_block_id", {})
+                        .get("hash", ""),
                         "time": block["header"]["time"],
                         "proposer": block["header"].get("proposer_address", ""),
                         "num_txs": len(block.get("data", {}).get("txs", [])),
-                        "txs": block.get("data", {}).get("txs", [])
+                        "txs": block.get("data", {}).get("txs", []),
                     }
         except Exception as e:
             logger.error(f"Block search error: {e}")
@@ -686,8 +763,7 @@ class SearchEngine:
         try:
             # Use Cosmos SDK RPC to get block by hash
             response = requests.get(
-                f"{self.node_url}/block_by_hash?hash=0x{block_hash}",
-                timeout=15
+                f"{self.node_url}/block_by_hash?hash=0x{block_hash}", timeout=15
             )
             if response.status_code == 200:
                 data = response.json()
@@ -698,7 +774,7 @@ class SearchEngine:
                         "hash": block_hash,
                         "time": block["header"]["time"],
                         "proposer": block["header"].get("proposer_address", ""),
-                        "num_txs": len(block.get("data", {}).get("txs", []))
+                        "num_txs": len(block.get("data", {}).get("txs", [])),
                     }
         except Exception as e:
             logger.error(f"Hash search error: {e}")
@@ -708,10 +784,7 @@ class SearchEngine:
         """Search by transaction ID - Cosmos SDK RPC"""
         try:
             # Use Cosmos SDK RPC to get transaction
-            response = requests.get(
-                f"{self.node_url}/tx?hash=0x{txid}",
-                timeout=15
-            )
+            response = requests.get(f"{self.node_url}/tx?hash=0x{txid}", timeout=15)
             if response.status_code == 200:
                 data = response.json()
                 if data.get("result"):
@@ -724,10 +797,13 @@ class SearchEngine:
         """Search by address - Cosmos SDK API"""
         try:
             # Use Cosmos SDK REST API for balance
-            api_url = config.NODE_API_URL if hasattr(config, 'NODE_API_URL') else "http://localhost:1317"
+            api_url = (
+                config.NODE_API_URL
+                if hasattr(config, "NODE_API_URL")
+                else "http://localhost:1317"
+            )
             balance_response = requests.get(
-                f"{api_url}/cosmos/bank/v1beta1/balances/{address}",
-                timeout=15
+                f"{api_url}/cosmos/bank/v1beta1/balances/{address}", timeout=15
             )
 
             if balance_response.status_code == 200:
@@ -744,7 +820,7 @@ class SearchEngine:
                     "address": address,
                     "balance": total_balance,
                     "balances": balances,
-                    "denom": config.DENOM
+                    "denom": config.DENOM,
                 }
         except Exception as e:
             logger.error(f"Address search error: {e}")
@@ -752,6 +828,7 @@ class SearchEngine:
 
 
 # ==================== RICH LIST MANAGER ====================
+
 
 class RichListManager:
     """Manage top address holders"""
@@ -763,7 +840,9 @@ class RichListManager:
         self.rich_list_cache: Optional[List[Dict[str, Any]]] = None
         self.cache_timestamp: float = 0
 
-    def get_rich_list(self, limit: int = 100, refresh: bool = False) -> List[Dict[str, Any]]:
+    def get_rich_list(
+        self, limit: int = 100, refresh: bool = False
+    ) -> List[Dict[str, Any]]:
         """Get top address holders"""
         cache_key = f"rich_list_{limit}"
 
@@ -776,7 +855,9 @@ class RichListManager:
             rich_list = self._calculate_rich_list(limit)
 
             if rich_list:
-                self.db.set_cache(cache_key, json.dumps(rich_list), ttl=600)  # Cache for 10 minutes
+                self.db.set_cache(
+                    cache_key, json.dumps(rich_list), ttl=600
+                )  # Cache for 10 minutes
                 self.db.record_metric("richlist_top_holder", rich_list[0]["balance"])
 
             return rich_list
@@ -787,7 +868,9 @@ class RichListManager:
     def _calculate_rich_list(self, limit: int) -> List[Dict[str, Any]]:
         """Calculate rich list from blockchain"""
         try:
-            blocks_response = requests.get(f"{self.node_url}/blocks?limit=10000", timeout=30)
+            blocks_response = requests.get(
+                f"{self.node_url}/blocks?limit=10000", timeout=30
+            )
             blocks_response.raise_for_status()
             blocks = blocks_response.json().get("blocks", [])
 
@@ -807,23 +890,28 @@ class RichListManager:
 
             # Sort by balance
             sorted_addresses = sorted(
-                address_balances.items(),
-                key=lambda x: x[1],
-                reverse=True
+                address_balances.items(), key=lambda x: x[1], reverse=True
             )
 
             # Build rich list with labels
             rich_list = []
             for rank, (address, balance) in enumerate(sorted_addresses[:limit], 1):
                 label_data = self.db.get_address_label(address)
-                rich_list.append({
-                    "rank": rank,
-                    "address": address,
-                    "balance": balance,
-                    "label": label_data.label if label_data else None,
-                    "category": label_data.category if label_data else None,
-                    "percentage_of_supply": (balance / sum(dict(address_balances).values())) * 100 if sum(address_balances.values()) > 0 else 0
-                })
+                rich_list.append(
+                    {
+                        "rank": rank,
+                        "address": address,
+                        "balance": balance,
+                        "label": label_data.label if label_data else None,
+                        "category": label_data.category if label_data else None,
+                        "percentage_of_supply": (
+                            balance / sum(dict(address_balances).values())
+                        )
+                        * 100
+                        if sum(address_balances.values()) > 0
+                        else 0,
+                    }
+                )
 
             return rich_list
         except Exception as e:
@@ -832,6 +920,7 @@ class RichListManager:
 
 
 # ==================== CSV EXPORT ====================
+
 
 class ExportManager:
     """Handle data exports"""
@@ -843,7 +932,9 @@ class ExportManager:
     def export_transactions_csv(self, address: str) -> Optional[str]:
         """Export address transactions as CSV"""
         try:
-            history_response = requests.get(f"{self.node_url}/history/{address}", timeout=15)
+            history_response = requests.get(
+                f"{self.node_url}/history/{address}", timeout=15
+            )
             if history_response.status_code != 200:
                 return None
 
@@ -873,6 +964,7 @@ class ExportManager:
 
 # ==================== GOVERNANCE SERVICE ====================
 
+
 class GovernanceService:
     """
     Governance data service for proposals and voting.
@@ -884,10 +976,7 @@ class GovernanceService:
         self.db = db
 
     def get_proposals(
-        self,
-        status: Optional[str] = None,
-        limit: int = 20,
-        offset: int = 0
+        self, status: Optional[str] = None, limit: int = 20, offset: int = 0
     ) -> Dict[str, Any]:
         """Get list of governance proposals with optional status filter."""
         cache_key = f"proposals:{status or 'all'}:{limit}:{offset}"
@@ -899,7 +988,7 @@ class GovernanceService:
             params = {
                 "pagination.limit": str(limit),
                 "pagination.offset": str(offset),
-                "pagination.reverse": "true"
+                "pagination.reverse": "true",
             }
             if status:
                 # Map friendly status to Cosmos SDK status
@@ -908,7 +997,7 @@ class GovernanceService:
                     "passed": "PROPOSAL_STATUS_PASSED",
                     "rejected": "PROPOSAL_STATUS_REJECTED",
                     "deposit": "PROPOSAL_STATUS_DEPOSIT_PERIOD",
-                    "failed": "PROPOSAL_STATUS_FAILED"
+                    "failed": "PROPOSAL_STATUS_FAILED",
                 }
                 cosmos_status = status_map.get(status.lower(), status)
                 params["proposal_status"] = cosmos_status
@@ -916,7 +1005,7 @@ class GovernanceService:
             response = requests.get(
                 f"{self.api_url}/cosmos/gov/v1beta1/proposals",
                 params=params,
-                timeout=30
+                timeout=30,
             )
             response.raise_for_status()
             data = response.json()
@@ -942,8 +1031,7 @@ class GovernanceService:
 
         try:
             response = requests.get(
-                f"{self.api_url}/cosmos/gov/v1beta1/proposals/{proposal_id}",
-                timeout=30
+                f"{self.api_url}/cosmos/gov/v1beta1/proposals/{proposal_id}", timeout=30
             )
             response.raise_for_status()
             data = response.json()
@@ -953,7 +1041,7 @@ class GovernanceService:
             # Also fetch tally results
             tally_response = requests.get(
                 f"{self.api_url}/cosmos/gov/v1beta1/proposals/{proposal_id}/tally",
-                timeout=30
+                timeout=30,
             )
             if tally_response.status_code == 200:
                 tally_data = tally_response.json()
@@ -966,10 +1054,7 @@ class GovernanceService:
             return {"error": str(e)}
 
     def get_proposal_votes(
-        self,
-        proposal_id: int,
-        limit: int = 50,
-        offset: int = 0
+        self, proposal_id: int, limit: int = 50, offset: int = 0
     ) -> Dict[str, Any]:
         """Get votes for a proposal."""
         cache_key = f"votes:{proposal_id}:{limit}:{offset}"
@@ -978,14 +1063,11 @@ class GovernanceService:
             return json.loads(cached)
 
         try:
-            params = {
-                "pagination.limit": str(limit),
-                "pagination.offset": str(offset)
-            }
+            params = {"pagination.limit": str(limit), "pagination.offset": str(offset)}
             response = requests.get(
                 f"{self.api_url}/cosmos/gov/v1beta1/proposals/{proposal_id}/votes",
                 params=params,
-                timeout=30
+                timeout=30,
             )
             response.raise_for_status()
             data = response.json()
@@ -1013,8 +1095,7 @@ class GovernanceService:
             params = {}
             for param_type in ["deposit", "voting", "tallying"]:
                 response = requests.get(
-                    f"{self.api_url}/cosmos/gov/v1beta1/params/{param_type}",
-                    timeout=15
+                    f"{self.api_url}/cosmos/gov/v1beta1/params/{param_type}", timeout=15
                 )
                 if response.status_code == 200:
                     data = response.json()
@@ -1053,7 +1134,7 @@ class GovernanceService:
             "voting_start_time": voting_start,
             "voting_end_time": voting_end,
             "total_deposit": self._format_coins(prop.get("total_deposit", [])),
-            "tally": self._format_tally(final_tally) if final_tally else None
+            "tally": self._format_tally(final_tally) if final_tally else None,
         }
 
     def _format_tally(self, tally: Dict[str, Any]) -> Dict[str, Any]:
@@ -1073,7 +1154,7 @@ class GovernanceService:
             "yes_percent": (yes / total * 100) if total > 0 else 0,
             "no_percent": (no / total * 100) if total > 0 else 0,
             "abstain_percent": (abstain / total * 100) if total > 0 else 0,
-            "veto_percent": (no_with_veto / total * 100) if total > 0 else 0
+            "veto_percent": (no_with_veto / total * 100) if total > 0 else 0,
         }
 
     def _format_vote(self, vote: Dict[str, Any]) -> Dict[str, Any]:
@@ -1083,13 +1164,13 @@ class GovernanceService:
             "VOTE_OPTION_YES": "Yes",
             "VOTE_OPTION_NO": "No",
             "VOTE_OPTION_ABSTAIN": "Abstain",
-            "VOTE_OPTION_NO_WITH_VETO": "No with Veto"
+            "VOTE_OPTION_NO_WITH_VETO": "No with Veto",
         }.get(option, option)
 
         return {
             "voter": vote.get("voter"),
             "option": option_friendly,
-            "option_raw": option
+            "option_raw": option,
         }
 
     def _friendly_status(self, status: str) -> str:
@@ -1099,7 +1180,7 @@ class GovernanceService:
             "PROPOSAL_STATUS_VOTING_PERIOD": "Voting",
             "PROPOSAL_STATUS_PASSED": "Passed",
             "PROPOSAL_STATUS_REJECTED": "Rejected",
-            "PROPOSAL_STATUS_FAILED": "Failed"
+            "PROPOSAL_STATUS_FAILED": "Failed",
         }
         return status_map.get(status, status)
 
@@ -1121,6 +1202,7 @@ class GovernanceService:
 
 # ==================== STAKING SERVICE ====================
 
+
 class StakingService:
     """
     Staking data service for delegations, rewards, and pool info.
@@ -1140,8 +1222,7 @@ class StakingService:
 
         try:
             response = requests.get(
-                f"{self.api_url}/cosmos/staking/v1beta1/pool",
-                timeout=15
+                f"{self.api_url}/cosmos/staking/v1beta1/pool", timeout=15
             )
             response.raise_for_status()
             data = response.json()
@@ -1158,7 +1239,7 @@ class StakingService:
                 "bonded_ratio": (bonded / total * 100) if total > 0 else 0,
                 "bonded_formatted": f"{bonded / 1_000_000:.2f} AURA",
                 "not_bonded_formatted": f"{not_bonded / 1_000_000:.2f} AURA",
-                "total_formatted": f"{total / 1_000_000:.2f} AURA"
+                "total_formatted": f"{total / 1_000_000:.2f} AURA",
             }
 
             self.db.set_cache(cache_key, json.dumps(result), ttl=60)
@@ -1178,7 +1259,7 @@ class StakingService:
             response = requests.get(
                 f"{self.api_url}/cosmos/staking/v1beta1/delegations/{address}",
                 params={"pagination.limit": "100"},
-                timeout=30
+                timeout=30,
             )
             response.raise_for_status()
             data = response.json()
@@ -1192,20 +1273,22 @@ class StakingService:
                 amount = int(balance.get("amount", "0"))
                 total_staked += amount
 
-                delegations.append({
-                    "validator_address": delegation.get("validator_address"),
-                    "delegator_address": delegation.get("delegator_address"),
-                    "shares": delegation.get("shares"),
-                    "amount": amount,
-                    "amount_formatted": f"{amount / 1_000_000:.6f} AURA",
-                    "denom": balance.get("denom", config.DENOM)
-                })
+                delegations.append(
+                    {
+                        "validator_address": delegation.get("validator_address"),
+                        "delegator_address": delegation.get("delegator_address"),
+                        "shares": delegation.get("shares"),
+                        "amount": amount,
+                        "amount_formatted": f"{amount / 1_000_000:.6f} AURA",
+                        "denom": balance.get("denom", config.DENOM),
+                    }
+                )
 
             result = {
                 "delegations": delegations,
                 "total_staked": total_staked,
                 "total_staked_formatted": f"{total_staked / 1_000_000:.6f} AURA",
-                "count": len(delegations)
+                "count": len(delegations),
             }
 
             self.db.set_cache(cache_key, json.dumps(result), ttl=30)
@@ -1225,7 +1308,7 @@ class StakingService:
             response = requests.get(
                 f"{self.api_url}/cosmos/staking/v1beta1/delegators/{address}/unbonding_delegations",
                 params={"pagination.limit": "100"},
-                timeout=30
+                timeout=30,
             )
             response.raise_for_status()
             data = response.json()
@@ -1238,21 +1321,23 @@ class StakingService:
                 for entry in item.get("entries", []):
                     balance = int(entry.get("balance", "0"))
                     total_unbonding += balance
-                    unbondings.append({
-                        "validator_address": validator,
-                        "delegator_address": item.get("delegator_address"),
-                        "creation_height": entry.get("creation_height"),
-                        "completion_time": entry.get("completion_time"),
-                        "initial_balance": int(entry.get("initial_balance", "0")),
-                        "balance": balance,
-                        "balance_formatted": f"{balance / 1_000_000:.6f} AURA"
-                    })
+                    unbondings.append(
+                        {
+                            "validator_address": validator,
+                            "delegator_address": item.get("delegator_address"),
+                            "creation_height": entry.get("creation_height"),
+                            "completion_time": entry.get("completion_time"),
+                            "initial_balance": int(entry.get("initial_balance", "0")),
+                            "balance": balance,
+                            "balance_formatted": f"{balance / 1_000_000:.6f} AURA",
+                        }
+                    )
 
             result = {
                 "unbonding_delegations": unbondings,
                 "total_unbonding": total_unbonding,
                 "total_unbonding_formatted": f"{total_unbonding / 1_000_000:.6f} AURA",
-                "count": len(unbondings)
+                "count": len(unbondings),
             }
 
             self.db.set_cache(cache_key, json.dumps(result), ttl=30)
@@ -1271,7 +1356,7 @@ class StakingService:
         try:
             response = requests.get(
                 f"{self.api_url}/cosmos/distribution/v1beta1/delegators/{address}/rewards",
-                timeout=30
+                timeout=30,
             )
             response.raise_for_status()
             data = response.json()
@@ -1281,15 +1366,19 @@ class StakingService:
                 validator_rewards = []
                 for reward in item.get("reward", []):
                     amount = float(reward.get("amount", "0"))
-                    validator_rewards.append({
-                        "amount": amount,
-                        "denom": reward.get("denom", config.DENOM),
-                        "amount_formatted": f"{amount / 1_000_000:.6f} AURA"
-                    })
-                rewards_by_validator.append({
-                    "validator_address": item.get("validator_address"),
-                    "rewards": validator_rewards
-                })
+                    validator_rewards.append(
+                        {
+                            "amount": amount,
+                            "denom": reward.get("denom", config.DENOM),
+                            "amount_formatted": f"{amount / 1_000_000:.6f} AURA",
+                        }
+                    )
+                rewards_by_validator.append(
+                    {
+                        "validator_address": item.get("validator_address"),
+                        "rewards": validator_rewards,
+                    }
+                )
 
             # Total rewards
             total_rewards = []
@@ -1297,17 +1386,19 @@ class StakingService:
             for reward in data.get("total", []):
                 amount = float(reward.get("amount", "0"))
                 total_amount += amount
-                total_rewards.append({
-                    "amount": amount,
-                    "denom": reward.get("denom", config.DENOM),
-                    "amount_formatted": f"{amount / 1_000_000:.6f} AURA"
-                })
+                total_rewards.append(
+                    {
+                        "amount": amount,
+                        "denom": reward.get("denom", config.DENOM),
+                        "amount_formatted": f"{amount / 1_000_000:.6f} AURA",
+                    }
+                )
 
             result = {
                 "rewards_by_validator": rewards_by_validator,
                 "total_rewards": total_rewards,
                 "total_amount": total_amount,
-                "total_formatted": f"{total_amount / 1_000_000:.6f} AURA"
+                "total_formatted": f"{total_amount / 1_000_000:.6f} AURA",
             }
 
             self.db.set_cache(cache_key, json.dumps(result), ttl=30)
@@ -1325,8 +1416,7 @@ class StakingService:
 
         try:
             response = requests.get(
-                f"{self.api_url}/cosmos/staking/v1beta1/params",
-                timeout=15
+                f"{self.api_url}/cosmos/staking/v1beta1/params", timeout=15
             )
             response.raise_for_status()
             data = response.json()
@@ -1337,7 +1427,7 @@ class StakingService:
                 "max_validators": int(params.get("max_validators", 0)),
                 "max_entries": int(params.get("max_entries", 0)),
                 "historical_entries": int(params.get("historical_entries", 0)),
-                "bond_denom": params.get("bond_denom", config.DENOM)
+                "bond_denom": params.get("bond_denom", config.DENOM),
             }
 
             self.db.set_cache(cache_key, json.dumps(result), ttl=300)
@@ -1348,6 +1438,7 @@ class StakingService:
 
 
 # ==================== CORE DATA SERVICE ====================
+
 
 class BlockchainDataService:
     """
@@ -1383,9 +1474,7 @@ class BlockchainDataService:
             blocks = [
                 self._format_block_meta(meta)
                 for meta in sorted(
-                    metas,
-                    key=lambda m: int(m["header"]["height"]),
-                    reverse=True
+                    metas, key=lambda m: int(m["header"]["height"]), reverse=True
                 )
             ]
 
@@ -1401,7 +1490,7 @@ class BlockchainDataService:
         limit: int = 20,
         offset: int = 0,
         tx_type: Optional[str] = None,
-        status: Optional[str] = None
+        status: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Return paginated transaction list with optional filters."""
         limit, offset = self._normalize_pagination(limit, offset)
@@ -1418,12 +1507,10 @@ class BlockchainDataService:
                 "events": "tx.height>0",
                 "pagination.limit": str(limit),
                 "pagination.offset": str(offset),
-                "order_by": "ORDER_BY_DESC"
+                "order_by": "ORDER_BY_DESC",
             }
             response = requests.get(
-                f"{self.api_url}/cosmos/tx/v1beta1/txs",
-                params=params,
-                timeout=30
+                f"{self.api_url}/cosmos/tx/v1beta1/txs", params=params, timeout=30
             )
             response.raise_for_status()
             data = response.json()
@@ -1451,12 +1538,10 @@ class BlockchainDataService:
                 "prove": "false",
                 "page": str(page),
                 "per_page": str(limit),
-                "order_by": '"desc"'
+                "order_by": '"desc"',
             }
             rpc_response = requests.get(
-                f"{self.node_url}/tx_search",
-                params=rpc_params,
-                timeout=30
+                f"{self.node_url}/tx_search", params=rpc_params, timeout=30
             )
             rpc_response.raise_for_status()
             rpc_data = rpc_response.json().get("result", {})
@@ -1468,26 +1553,31 @@ class BlockchainDataService:
                     continue
                 try:
                     tx_detail = requests.get(
-                        f"{self.api_url}/cosmos/tx/v1beta1/txs/{tx_hash}",
-                        timeout=30
+                        f"{self.api_url}/cosmos/tx/v1beta1/txs/{tx_hash}", timeout=30
                     )
                     tx_detail.raise_for_status()
                     tx_response = tx_detail.json().get("tx_response", {})
                     formatted.append(self._format_transaction(tx_response))
                 except Exception as tx_err:
-                    logger.error(f"Transaction detail fetch error ({tx_hash}): {tx_err}")
-                    formatted.append({
-                        "hash": tx_hash,
-                        "height": int(raw.get("height", 0)),
-                        "type": "Unknown",
-                        "type_key": "unknown",
-                        "from": None,
-                        "to": None,
-                        "amount": None,
-                        "status": "success" if raw.get("tx_result", {}).get("code", 0) == 0 else "failed",
-                        "fee": None,
-                        "time": None
-                    })
+                    logger.error(
+                        f"Transaction detail fetch error ({tx_hash}): {tx_err}"
+                    )
+                    formatted.append(
+                        {
+                            "hash": tx_hash,
+                            "height": int(raw.get("height", 0)),
+                            "type": "Unknown",
+                            "type_key": "unknown",
+                            "from": None,
+                            "to": None,
+                            "amount": None,
+                            "status": "success"
+                            if raw.get("tx_result", {}).get("code", 0) == 0
+                            else "failed",
+                            "fee": None,
+                            "time": None,
+                        }
+                    )
 
             total = int(rpc_data.get("total_count", len(formatted)))
             result = {"transactions": formatted, "total": total}
@@ -1499,42 +1589,53 @@ class BlockchainDataService:
 
     def get_validators(self, sort_by: str = "voting_power") -> Dict[str, Any]:
         """Return validator list sorted by provided metric."""
-        sort_key = sort_by if sort_by in {"voting_power", "commission", "uptime"} else "voting_power"
+        sort_key = (
+            sort_by
+            if sort_by in {"voting_power", "commission", "uptime"}
+            else "voting_power"
+        )
         cache_key = f"validators:{sort_key}"
         cached = self.db.get_cache(cache_key)
         if cached:
             return json.loads(cached)
 
         try:
-            params = {
-                "status": "BOND_STATUS_BONDED",
-                "pagination.limit": "200"
-            }
+            params = {"status": "BOND_STATUS_BONDED", "pagination.limit": "200"}
             response = requests.get(
                 f"{self.api_url}/cosmos/staking/v1beta1/validators",
                 params=params,
-                timeout=30
+                timeout=30,
             )
             response.raise_for_status()
             validators = []
 
             for item in response.json().get("validators", []):
-                commission_rate = float(item.get("commission", {})
-                                        .get("commission_rates", {})
-                                        .get("rate", "0"))
+                commission_rate = float(
+                    item.get("commission", {})
+                    .get("commission_rates", {})
+                    .get("rate", "0")
+                )
                 tokens = int(item.get("tokens", "0"))
                 jailed = item.get("jailed", False)
                 status = item.get("status", "")
 
-                validators.append({
-                    "moniker": item.get("description", {}).get("moniker", "Unknown"),
-                    "address": item.get("operator_address"),
-                    "consensus_address": item.get("consensus_pubkey", {}).get("key"),
-                    "voting_power": tokens,
-                    "commission": commission_rate,
-                    "uptime": 0.0 if jailed else 0.99,
-                    "status": "active" if status == "BOND_STATUS_BONDED" else "inactive"
-                })
+                validators.append(
+                    {
+                        "moniker": item.get("description", {}).get(
+                            "moniker", "Unknown"
+                        ),
+                        "address": item.get("operator_address"),
+                        "consensus_address": item.get("consensus_pubkey", {}).get(
+                            "key"
+                        ),
+                        "voting_power": tokens,
+                        "commission": commission_rate,
+                        "uptime": 0.0 if jailed else 0.99,
+                        "status": "active"
+                        if status == "BOND_STATUS_BONDED"
+                        else "inactive",
+                    }
+                )
 
             validators.sort(key=lambda v: v[sort_key], reverse=True)
             result = {"validators": validators, "count": len(validators)}
@@ -1546,9 +1647,7 @@ class BlockchainDataService:
         try:
             rpc_params = {"page": "1", "per_page": "200"}
             rpc_response = requests.get(
-                f"{self.node_url}/validators",
-                params=rpc_params,
-                timeout=15
+                f"{self.node_url}/validators", params=rpc_params, timeout=15
             )
             rpc_response.raise_for_status()
             validators = []
@@ -1556,15 +1655,17 @@ class BlockchainDataService:
             for item in rpc_response.json().get("result", {}).get("validators", []):
                 voting_power = int(item.get("voting_power", 0))
                 consensus_addr = item.get("address")
-                validators.append({
-                    "moniker": consensus_addr or "Unknown",
-                    "address": None,
-                    "consensus_address": consensus_addr,
-                    "voting_power": voting_power,
-                    "commission": 0.0,
-                    "uptime": 0.99 if voting_power > 0 else 0.0,
-                    "status": "active" if voting_power > 0 else "inactive"
-                })
+                validators.append(
+                    {
+                        "moniker": consensus_addr or "Unknown",
+                        "address": None,
+                        "consensus_address": consensus_addr,
+                        "voting_power": voting_power,
+                        "commission": 0.0,
+                        "uptime": 0.99 if voting_power > 0 else 0.0,
+                        "status": "active" if voting_power > 0 else "inactive",
+                    }
+                )
 
             validators.sort(key=lambda v: v[sort_key], reverse=True)
             result = {"validators": validators, "count": len(validators)}
@@ -1592,16 +1693,23 @@ class BlockchainDataService:
             validator_count = self.get_validators().get("count", 0)
 
             stats = {
-                "latest_block": latest_block["height"] if latest_block else latest_height,
+                "latest_block": latest_block["height"]
+                if latest_block
+                else latest_height,
                 "latest_block_time": latest_block["time"] if latest_block else None,
                 "total_txs": total_txs,
-                "active_validators": validator_count
+                "active_validators": validator_count,
             }
             self.db.set_cache(cache_key, json.dumps(stats), ttl=10)
             return stats
         except Exception as e:
             logger.error(f"Stats fetch error: {e}")
-            return {"latest_block": 0, "total_txs": 0, "active_validators": 0, "error": str(e)}
+            return {
+                "latest_block": 0,
+                "total_txs": 0,
+                "active_validators": 0,
+                "error": str(e),
+            }
 
     # ------- Helpers -------
 
@@ -1614,15 +1722,19 @@ class BlockchainDataService:
         try:
             response = requests.get(f"{self.node_url}/status", timeout=15)
             response.raise_for_status()
-            return int(response.json()
-                       .get("result", {})
-                       .get("sync_info", {})
-                       .get("latest_block_height", 0))
+            return int(
+                response.json()
+                .get("result", {})
+                .get("sync_info", {})
+                .get("latest_block_height", 0)
+            )
         except Exception as e:
             logger.error(f"Status fetch error: {e}")
             return 0
 
-    def _fetch_block_metas(self, start_height: int, end_height: int) -> List[Dict[str, Any]]:
+    def _fetch_block_metas(
+        self, start_height: int, end_height: int
+    ) -> List[Dict[str, Any]]:
         metas: List[Dict[str, Any]] = []
         cursor = end_height
         while cursor >= start_height:
@@ -1632,7 +1744,7 @@ class BlockchainDataService:
                 response = requests.get(
                     f"{self.node_url}/blockchain",
                     params={"minHeight": str(chunk_start), "maxHeight": str(chunk_end)},
-                    timeout=30
+                    timeout=30,
                 )
                 response.raise_for_status()
                 chunk = response.json().get("result", {}).get("block_metas", [])
@@ -1661,7 +1773,7 @@ class BlockchainDataService:
             "time": timestamp,
             "proposer": header.get("proposer_address"),
             "num_txs": int(meta.get("num_txs", 0)),
-            "size": meta.get("block_size")
+            "size": meta.get("block_size"),
         }
 
     def _format_transaction(self, tx_response: Dict[str, Any]) -> Dict[str, Any]:
@@ -1691,7 +1803,7 @@ class BlockchainDataService:
             "amount": amount,
             "status": status,
             "fee": self._format_fee(raw_tx),
-            "time": timestamp
+            "time": timestamp,
         }
 
     def _extract_amount(self, messages: List[Dict[str, Any]]) -> Optional[str]:
@@ -1705,11 +1817,18 @@ class BlockchainDataService:
                 return self._format_coin(value.get("amount", "0"), value.get("denom"))
         return None
 
-    def _extract_addresses(self, messages: List[Dict[str, Any]]) -> Tuple[Optional[str], Optional[str]]:
+    def _extract_addresses(
+        self, messages: List[Dict[str, Any]]
+    ) -> Tuple[Optional[str], Optional[str]]:
         sender = None
         recipient = None
         for msg in messages:
-            sender = sender or msg.get("from_address") or msg.get("sender") or msg.get("signer")
+            sender = (
+                sender
+                or msg.get("from_address")
+                or msg.get("sender")
+                or msg.get("signer")
+            )
             recipient = recipient or msg.get("to_address") or msg.get("recipient")
             if sender and recipient:
                 break
@@ -1736,7 +1855,11 @@ class BlockchainDataService:
         return clean or "Unknown"
 
     def _type_key(self, friendly_type: str) -> str:
-        key = friendly_type.replace("Msg", "", 1) if friendly_type.lower().startswith("msg") else friendly_type
+        key = (
+            friendly_type.replace("Msg", "", 1)
+            if friendly_type.lower().startswith("msg")
+            else friendly_type
+        )
         normalized = []
         for idx, ch in enumerate(key):
             if idx > 0 and ch.isupper():
@@ -1759,7 +1882,7 @@ class BlockchainDataService:
             response = requests.get(
                 f"{self.api_url}/cosmos/tx/v1beta1/txs",
                 params={"events": "tx.height>0", "pagination.limit": "1"},
-                timeout=15
+                timeout=15,
             )
             response.raise_for_status()
             total = response.json().get("pagination", {}).get("total")
@@ -1775,9 +1898,9 @@ class BlockchainDataService:
                     "prove": "false",
                     "page": "1",
                     "per_page": "1",
-                    "order_by": '"desc"'
+                    "order_by": '"desc"',
                 },
-                timeout=15
+                timeout=15,
             )
             rpc_response.raise_for_status()
             total = rpc_response.json().get("result", {}).get("total_count")
@@ -1799,15 +1922,15 @@ swagger_config = {
     "headers": [],
     "specs": [
         {
-            "endpoint": 'apispec',
-            "route": '/apispec.json',
+            "endpoint": "apispec",
+            "route": "/apispec.json",
             "rule_filter": lambda rule: True,
             "model_filter": lambda tag: True,
         }
     ],
     "static_url_path": "/flasgger_static",
     "swagger_ui": True,
-    "specs_route": "/api/docs"
+    "specs_route": "/api/docs",
 }
 
 swagger_template = {
@@ -1815,10 +1938,7 @@ swagger_template = {
         "title": "AURA Blockchain Explorer API",
         "description": "API for exploring the AURA blockchain - blocks, transactions, accounts, staking, governance, and IBC",
         "version": "1.0.0",
-        "contact": {
-            "name": "AURA Blockchain",
-            "url": "https://aurablockchain.org"
-        }
+        "contact": {"name": "AURA Blockchain", "url": "https://aurablockchain.org"},
     },
     "host": "explorer.aurablockchain.org",
     "basePath": "/",
@@ -1836,8 +1956,8 @@ swagger_template = {
         {"name": "Search", "description": "Search and discovery endpoints"},
         {"name": "RichList", "description": "Top holders endpoints"},
         {"name": "Supply", "description": "Token supply endpoints"},
-        {"name": "Export", "description": "Data export endpoints"}
-    ]
+        {"name": "Export", "description": "Data export endpoints"},
+    ],
 }
 
 swagger = Swagger(app, config=swagger_config, template=swagger_template)
@@ -1862,6 +1982,7 @@ ws_lock = threading.RLock()
 
 
 # ==================== ANALYTICS ENDPOINTS ====================
+
 
 @app.route("/api/analytics/hashrate", methods=["GET"])
 def get_hashrate_endpoint():
@@ -2091,18 +2212,21 @@ def get_analytics_dashboard():
       500:
         description: Server error
     """
-    return jsonify({
-        "hashrate": analytics.get_network_hashrate(),
-        "transaction_volume": analytics.get_transaction_volume(),
-        "active_addresses": analytics.get_active_addresses(),
-        "average_block_time": analytics.get_average_block_time(),
-        "mempool": analytics.get_mempool_size(),
-        "difficulty": analytics.get_network_difficulty(),
-        "timestamp": time.time()
-    })
+    return jsonify(
+        {
+            "hashrate": analytics.get_network_hashrate(),
+            "transaction_volume": analytics.get_transaction_volume(),
+            "active_addresses": analytics.get_active_addresses(),
+            "average_block_time": analytics.get_average_block_time(),
+            "mempool": analytics.get_mempool_size(),
+            "difficulty": analytics.get_network_difficulty(),
+            "timestamp": time.time(),
+        }
+    )
 
 
 # ==================== CORE DATA ENDPOINTS ====================
+
 
 @app.route("/api/blocks", methods=["GET"])
 def get_blocks_endpoint():
@@ -2332,29 +2456,34 @@ def get_stats_endpoint():
     """
     core_stats = data_service.get_core_stats()
     avg_block = analytics.get_average_block_time()
-    return jsonify({
-        "latest_block": core_stats.get("latest_block"),
-        "latest_block_time": core_stats.get("latest_block_time"),
-        "avg_block_time": avg_block.get("average_block_time_seconds"),
-        "total_txs": core_stats.get("total_txs"),
-        "active_validators": core_stats.get("active_validators")
-    })
+    return jsonify(
+        {
+            "latest_block": core_stats.get("latest_block"),
+            "latest_block_time": core_stats.get("latest_block_time"),
+            "avg_block_time": avg_block.get("average_block_time_seconds"),
+            "total_txs": core_stats.get("total_txs"),
+            "active_validators": core_stats.get("active_validators"),
+        }
+    )
 
 
 # ==================== ACCOUNT ENDPOINTS ====================
 
+
 def _fetch_with_retry(url, max_retries=3, timeout=15):
     """Fetch URL with retry logic for REST API connection issues."""
     import time as time_module
+
     for attempt in range(max_retries):
         try:
             response = requests.get(
-                url,
-                headers={"Connection": "close"},
-                timeout=timeout
+                url, headers={"Connection": "close"}, timeout=timeout
             )
             return response
-        except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError) as e:
+        except (
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ChunkedEncodingError,
+        ) as e:
             if attempt < max_retries - 1:
                 time_module.sleep(0.5)
                 continue
@@ -2451,21 +2580,20 @@ def api_account(address):
         for bal in balances:
             denom = bal.get("denom", "")
             amount = int(bal.get("amount", "0"))
-            formatted = {
-                "denom": denom,
-                "amount": str(amount)
-            }
+            formatted = {"denom": denom, "amount": str(amount)}
             if denom == config.DENOM:
                 formatted["amount_formatted"] = f"{amount / 1_000_000:.6f} AURA"
             formatted_balances.append(formatted)
 
-        return jsonify({
-            "address": address,
-            "balances": formatted_balances,
-            "account_number": account_number,
-            "sequence": sequence,
-            "account_type": account_type
-        })
+        return jsonify(
+            {
+                "address": address,
+                "balances": formatted_balances,
+                "account_number": account_number,
+                "sequence": sequence,
+                "account_type": account_type,
+            }
+        )
     except Exception as e:
         logger.error(f"Account fetch error for {address}: {e}")
         return jsonify({"error": str(e)}), 500
@@ -2542,16 +2670,14 @@ def api_account_transactions(address):
 
         # Search for transactions where address is sender
         sender_params = {
-            "query": f'"message.sender=\'{address}\'"',
+            "query": f"\"message.sender='{address}'\"",
             "prove": "false",
             "page": str(page),
             "per_page": str(limit),
-            "order_by": '"desc"'
+            "order_by": '"desc"',
         }
         sender_response = requests.get(
-            f"{config.NODE_RPC_URL}/tx_search",
-            params=sender_params,
-            timeout=30
+            f"{config.NODE_RPC_URL}/tx_search", params=sender_params, timeout=30
         )
 
         transactions = []
@@ -2572,11 +2698,12 @@ def api_account_transactions(address):
                 timestamp = None
                 try:
                     block_resp = requests.get(
-                        f"{config.NODE_RPC_URL}/block?height={height}",
-                        timeout=10
+                        f"{config.NODE_RPC_URL}/block?height={height}", timeout=10
                     )
                     if block_resp.status_code == 200:
-                        block_data = block_resp.json().get("result", {}).get("block", {})
+                        block_data = (
+                            block_resp.json().get("result", {}).get("block", {})
+                        )
                         timestamp = block_data.get("header", {}).get("time")
                 except Exception:
                     pass
@@ -2587,39 +2714,50 @@ def api_account_transactions(address):
                 for event in events:
                     if event.get("type") == "message":
                         for attr in event.get("attributes", []):
-                            if attr.get("key") == "action" or attr.get("key") == "YWN0aW9u":
+                            if (
+                                attr.get("key") == "action"
+                                or attr.get("key") == "YWN0aW9u"
+                            ):
                                 action = attr.get("value", "")
                                 # Handle base64 encoded values
                                 if action:
                                     try:
                                         import base64
-                                        decoded = base64.b64decode(action).decode("utf-8")
+
+                                        decoded = base64.b64decode(action).decode(
+                                            "utf-8"
+                                        )
                                         tx_type = decoded.split(".")[-1]
                                     except Exception:
                                         tx_type = action.split(".")[-1]
                                 break
 
-                transactions.append({
-                    "hash": tx_hash,
-                    "height": height,
-                    "timestamp": timestamp,
-                    "type": tx_type,
-                    "status": status
-                })
+                transactions.append(
+                    {
+                        "hash": tx_hash,
+                        "height": height,
+                        "timestamp": timestamp,
+                        "type": tx_type,
+                        "status": status,
+                    }
+                )
 
-        return jsonify({
-            "address": address,
-            "transactions": transactions,
-            "total": total_count,
-            "page": page,
-            "limit": limit
-        })
+        return jsonify(
+            {
+                "address": address,
+                "transactions": transactions,
+                "total": total_count,
+                "page": page,
+                "limit": limit,
+            }
+        )
     except Exception as e:
         logger.error(f"Account transactions fetch error for {address}: {e}")
         return jsonify({"error": str(e)}), 500
 
 
 # ==================== BLOCK DETAIL ENDPOINT ====================
+
 
 @app.route("/api/blocks/<int:height>", methods=["GET"])
 def api_block_by_height(height):
@@ -2683,8 +2821,7 @@ def api_block_by_height(height):
     try:
         # Fetch block from RPC
         response = requests.get(
-            f"{config.NODE_RPC_URL}/block?height={height}",
-            timeout=15
+            f"{config.NODE_RPC_URL}/block?height={height}", timeout=15
         )
 
         if response.status_code != 200:
@@ -2709,6 +2846,7 @@ def api_block_by_height(height):
         # Build transaction list with hashes
         import hashlib
         import base64
+
         tx_list = []
         for tx_b64 in txs:
             try:
@@ -2718,24 +2856,27 @@ def api_block_by_height(height):
             except Exception:
                 tx_list.append({"hash": "unknown"})
 
-        return jsonify({
-            "height": int(header.get("height", height)),
-            "hash": block_id.get("hash", ""),
-            "time": timestamp,
-            "proposer": proposer_address,
-            "proposer_moniker": proposer_moniker,
-            "num_txs": len(txs),
-            "transactions": tx_list,
-            "chain_id": header.get("chain_id", config.CHAIN_ID),
-            "app_hash": header.get("app_hash", ""),
-            "last_block_hash": header.get("last_block_id", {}).get("hash", "")
-        })
+        return jsonify(
+            {
+                "height": int(header.get("height", height)),
+                "hash": block_id.get("hash", ""),
+                "time": timestamp,
+                "proposer": proposer_address,
+                "proposer_moniker": proposer_moniker,
+                "num_txs": len(txs),
+                "transactions": tx_list,
+                "chain_id": header.get("chain_id", config.CHAIN_ID),
+                "app_hash": header.get("app_hash", ""),
+                "last_block_hash": header.get("last_block_id", {}).get("hash", ""),
+            }
+        )
     except Exception as e:
         logger.error(f"Block fetch error for height {height}: {e}")
         return jsonify({"error": str(e)}), 500
 
 
 # ==================== TRANSACTION DETAIL ENDPOINT ====================
+
 
 @app.route("/api/transactions/<tx_hash>", methods=["GET"])
 def api_transaction_by_hash(tx_hash):
@@ -2810,8 +2951,7 @@ def api_transaction_by_hash(tx_hash):
 
         # Fetch transaction from RPC
         response = requests.get(
-            f"{config.NODE_RPC_URL}/tx?hash=0x{clean_hash}",
-            timeout=15
+            f"{config.NODE_RPC_URL}/tx?hash=0x{clean_hash}", timeout=15
         )
 
         if response.status_code != 200:
@@ -2834,8 +2974,7 @@ def api_transaction_by_hash(tx_hash):
         timestamp = None
         try:
             block_resp = requests.get(
-                f"{config.NODE_RPC_URL}/block?height={height}",
-                timeout=10
+                f"{config.NODE_RPC_URL}/block?height={height}", timeout=10
             )
             if block_resp.status_code == 200:
                 block_data = block_resp.json().get("result", {}).get("block", {})
@@ -2844,7 +2983,7 @@ def api_transaction_by_hash(tx_hash):
             pass
 
         # Parse transaction body for messages, fee, memo
-        import base64
+
         messages = []
         fee = None
         memo = ""
@@ -2857,61 +2996,60 @@ def api_transaction_by_hash(tx_hash):
                 rest_response = requests.get(
                     f"{config.NODE_API_URL}/cosmos/tx/v1beta1/txs/{clean_hash}",
                     headers={"Connection": "close"},
-                    timeout=15
+                    timeout=15,
                 )
                 if rest_response.status_code == 200:
                     rest_data = rest_response.json()
-                    tx_response = rest_data.get("tx_response", {})
                     raw_tx = rest_data.get("tx", {})
 
-                    # Extract messages
-                    body = raw_tx.get("body", {})
-                    raw_messages = body.get("messages", [])
-                    for msg in raw_messages:
-                        msg_type = msg.get("@type", "").split(".")[-1]
-                        messages.append({
-                            "type": msg_type,
-                            "content": msg
-                        })
-                    if messages:
-                        tx_type = messages[0]["type"]
+                # Extract messages
+                body = raw_tx.get("body", {})
+                raw_messages = body.get("messages", [])
+                for msg in raw_messages:
+                    msg_type = msg.get("@type", "").split(".")[-1]
+                    messages.append({"type": msg_type, "content": msg})
+                if messages:
+                    tx_type = messages[0]["type"]
 
-                    memo = body.get("memo", "")
+                memo = body.get("memo", "")
 
-                    # Extract fee
-                    auth_info = raw_tx.get("auth_info", {})
-                    fee_info = auth_info.get("fee", {})
-                    fee_amounts = fee_info.get("amount", [])
-                    if fee_amounts:
-                        fee_coin = fee_amounts[0]
-                        fee_amount = int(fee_coin.get("amount", "0"))
-                        fee_denom = fee_coin.get("denom", config.DENOM)
-                        if fee_denom == config.DENOM:
-                            fee = f"{fee_amount / 1_000_000:.6f} AURA"
-                        else:
-                            fee = f"{fee_amount} {fee_denom}"
+                # Extract fee
+                auth_info = raw_tx.get("auth_info", {})
+                fee_info = auth_info.get("fee", {})
+                fee_amounts = fee_info.get("amount", [])
+                if fee_amounts:
+                    fee_coin = fee_amounts[0]
+                    fee_amount = int(fee_coin.get("amount", "0"))
+                    fee_denom = fee_coin.get("denom", config.DENOM)
+                    if fee_denom == config.DENOM:
+                        fee = f"{fee_amount / 1_000_000:.6f} AURA"
+                    else:
+                        fee = f"{fee_amount} {fee_denom}"
             except Exception as parse_err:
                 logger.warning(f"Could not parse tx details: {parse_err}")
 
-        return jsonify({
-            "hash": clean_hash,
-            "height": height,
-            "timestamp": timestamp,
-            "type": tx_type,
-            "status": status,
-            "messages": messages,
-            "fee": fee,
-            "memo": memo,
-            "gas_wanted": gas_wanted,
-            "gas_used": gas_used,
-            "log": log if code != 0 else None
-        })
+        return jsonify(
+            {
+                "hash": clean_hash,
+                "height": height,
+                "timestamp": timestamp,
+                "type": tx_type,
+                "status": status,
+                "messages": messages,
+                "fee": fee,
+                "memo": memo,
+                "gas_wanted": gas_wanted,
+                "gas_used": gas_used,
+                "log": log if code != 0 else None,
+            }
+        )
     except Exception as e:
         logger.error(f"Transaction fetch error for {tx_hash}: {e}")
         return jsonify({"error": str(e)}), 500
 
 
 # ==================== VALIDATOR DETAIL ENDPOINT ====================
+
 
 @app.route("/api/validators/<address>", methods=["GET"])
 def api_validator_by_address(address):
@@ -3018,12 +3156,17 @@ def api_validator_by_address(address):
         if not validator:
             try:
                 genesis_response = requests.get(
-                    f"{config.NODE_RPC_URL}/genesis",
-                    timeout=30
+                    f"{config.NODE_RPC_URL}/genesis", timeout=30
                 )
                 if genesis_response.status_code == 200:
                     genesis_data = genesis_response.json()
-                    genesis_validators = genesis_data.get("result", {}).get("genesis", {}).get("app_state", {}).get("staking", {}).get("validators", [])
+                    genesis_validators = (
+                        genesis_data.get("result", {})
+                        .get("genesis", {})
+                        .get("app_state", {})
+                        .get("staking", {})
+                        .get("validators", [])
+                    )
                     for v in genesis_validators:
                         if v.get("operator_address") == address:
                             validator = v
@@ -3045,40 +3188,45 @@ def api_validator_by_address(address):
         status_map = {
             "BOND_STATUS_BONDED": "Active",
             "BOND_STATUS_UNBONDING": "Unbonding",
-            "BOND_STATUS_UNBONDED": "Inactive"
+            "BOND_STATUS_UNBONDED": "Inactive",
         }
         status_friendly = status_map.get(status, status)
 
-        return jsonify({
-            "operator_address": validator.get("operator_address"),
-            "consensus_pubkey": validator.get("consensus_pubkey"),
-            "moniker": description.get("moniker", "Unknown"),
-            "identity": description.get("identity", ""),
-            "website": description.get("website", ""),
-            "security_contact": description.get("security_contact", ""),
-            "details": description.get("details", ""),
-            "status": status_friendly,
-            "status_raw": status,
-            "jailed": jailed,
-            "tokens": tokens,
-            "tokens_formatted": f"{tokens / 1_000_000:.2f} AURA",
-            "delegator_shares": validator.get("delegator_shares"),
-            "commission": {
-                "rate": float(commission_rates.get("rate", "0")),
-                "max_rate": float(commission_rates.get("max_rate", "0")),
-                "max_change_rate": float(commission_rates.get("max_change_rate", "0")),
-                "update_time": commission.get("update_time")
-            },
-            "min_self_delegation": validator.get("min_self_delegation"),
-            "unbonding_height": validator.get("unbonding_height"),
-            "unbonding_time": validator.get("unbonding_time")
-        })
+        return jsonify(
+            {
+                "operator_address": validator.get("operator_address"),
+                "consensus_pubkey": validator.get("consensus_pubkey"),
+                "moniker": description.get("moniker", "Unknown"),
+                "identity": description.get("identity", ""),
+                "website": description.get("website", ""),
+                "security_contact": description.get("security_contact", ""),
+                "details": description.get("details", ""),
+                "status": status_friendly,
+                "status_raw": status,
+                "jailed": jailed,
+                "tokens": tokens,
+                "tokens_formatted": f"{tokens / 1_000_000:.2f} AURA",
+                "delegator_shares": validator.get("delegator_shares"),
+                "commission": {
+                    "rate": float(commission_rates.get("rate", "0")),
+                    "max_rate": float(commission_rates.get("max_rate", "0")),
+                    "max_change_rate": float(
+                        commission_rates.get("max_change_rate", "0")
+                    ),
+                    "update_time": commission.get("update_time"),
+                },
+                "min_self_delegation": validator.get("min_self_delegation"),
+                "unbonding_height": validator.get("unbonding_height"),
+                "unbonding_time": validator.get("unbonding_time"),
+            }
+        )
     except Exception as e:
         logger.error(f"Validator fetch error for {address}: {e}")
         return jsonify({"error": str(e)}), 500
 
 
 # ==================== IBC ENDPOINTS ====================
+
 
 @app.route("/api/ibc/transfers", methods=["GET"])
 def api_ibc_transfers():
@@ -3152,16 +3300,14 @@ def api_ibc_transfers():
 
         # Search for IBC transfer transactions
         params = {
-            "query": '"message.action=\'/ibc.applications.transfer.v1.MsgTransfer\'"',
+            "query": "\"message.action='/ibc.applications.transfer.v1.MsgTransfer'\"",
             "prove": "false",
             "page": str(page),
             "per_page": str(limit),
-            "order_by": '"desc"'
+            "order_by": '"desc"',
         }
         response = requests.get(
-            f"{config.NODE_RPC_URL}/tx_search",
-            params=params,
-            timeout=30
+            f"{config.NODE_RPC_URL}/tx_search", params=params, timeout=30
         )
 
         transfers = []
@@ -3194,11 +3340,13 @@ def api_ibc_transfers():
                             # Handle base64 encoded keys/values
                             try:
                                 import base64
+
                                 key = base64.b64decode(key).decode("utf-8")
                             except Exception:
                                 pass
                             try:
                                 import base64
+
                                 value = base64.b64decode(value).decode("utf-8")
                             except Exception:
                                 pass
@@ -3216,32 +3364,32 @@ def api_ibc_transfers():
                 timestamp = None
                 try:
                     block_resp = requests.get(
-                        f"{config.NODE_RPC_URL}/block?height={height}",
-                        timeout=10
+                        f"{config.NODE_RPC_URL}/block?height={height}", timeout=10
                     )
                     if block_resp.status_code == 200:
-                        block_data = block_resp.json().get("result", {}).get("block", {})
+                        block_data = (
+                            block_resp.json().get("result", {}).get("block", {})
+                        )
                         timestamp = block_data.get("header", {}).get("time")
                 except Exception:
                     pass
 
-                transfers.append({
-                    "hash": tx_hash,
-                    "height": height,
-                    "timestamp": timestamp,
-                    "sender": sender,
-                    "receiver": receiver,
-                    "amount": amount,
-                    "channel": channel,
-                    "status": status
-                })
+                transfers.append(
+                    {
+                        "hash": tx_hash,
+                        "height": height,
+                        "timestamp": timestamp,
+                        "sender": sender,
+                        "receiver": receiver,
+                        "amount": amount,
+                        "channel": channel,
+                        "status": status,
+                    }
+                )
 
-        return jsonify({
-            "transfers": transfers,
-            "total": total_count,
-            "page": page,
-            "limit": limit
-        })
+        return jsonify(
+            {"transfers": transfers, "total": total_count, "page": page, "limit": limit}
+        )
     except Exception as e:
         logger.error(f"IBC transfers fetch error: {e}")
         return jsonify({"error": str(e)}), 500
@@ -3306,13 +3454,18 @@ def api_ibc_channels():
             response = _fetch_with_retry(
                 f"{config.NODE_API_URL}/ibc/core/channel/v1/channels?pagination.limit=100",
                 max_retries=2,
-                timeout=30
+                timeout=30,
             )
         except Exception:
             response = None
 
         if not response or response.status_code != 200:
-            return jsonify({"channels": [], "error": "IBC module not available or no channels"}), 200
+            return (
+                jsonify(
+                    {"channels": [], "error": "IBC module not available or no channels"}
+                ),
+                200,
+            )
 
         data = response.json()
         raw_channels = data.get("channels", [])
@@ -3320,29 +3473,29 @@ def api_ibc_channels():
         channels = []
         for ch in raw_channels:
             counterparty = ch.get("counterparty", {})
-            channels.append({
-                "channel_id": ch.get("channel_id"),
-                "port_id": ch.get("port_id"),
-                "state": ch.get("state"),
-                "ordering": ch.get("ordering"),
-                "version": ch.get("version"),
-                "counterparty": {
-                    "channel_id": counterparty.get("channel_id"),
-                    "port_id": counterparty.get("port_id")
-                },
-                "connection_hops": ch.get("connection_hops", [])
-            })
+            channels.append(
+                {
+                    "channel_id": ch.get("channel_id"),
+                    "port_id": ch.get("port_id"),
+                    "state": ch.get("state"),
+                    "ordering": ch.get("ordering"),
+                    "version": ch.get("version"),
+                    "counterparty": {
+                        "channel_id": counterparty.get("channel_id"),
+                        "port_id": counterparty.get("port_id"),
+                    },
+                    "connection_hops": ch.get("connection_hops", []),
+                }
+            )
 
-        return jsonify({
-            "channels": channels,
-            "count": len(channels)
-        })
+        return jsonify({"channels": channels, "count": len(channels)})
     except Exception as e:
         logger.error(f"IBC channels fetch error: {e}")
         return jsonify({"error": str(e)}), 500
 
 
 # ==================== SUPPLY ENDPOINT ====================
+
 
 @app.route("/api/supply", methods=["GET"])
 def api_supply():
@@ -3390,7 +3543,7 @@ def api_supply():
         response = requests.get(
             f"{config.NODE_RPC_URL}/abci_query",
             params={"path": '"/cosmos.bank.v1beta1.Query/TotalSupply"'},
-            timeout=15
+            timeout=15,
         )
 
         if response.status_code != 200:
@@ -3416,11 +3569,11 @@ def api_supply():
         i = 0
 
         while i < len(raw_bytes):
-            if raw_bytes[i] == 0x0a:  # Field 1, wire type 2 (length-delimited)
+            if raw_bytes[i] == 0x0A:  # Field 1, wire type 2 (length-delimited)
                 i += 1
                 coin_len = raw_bytes[i]
                 i += 1
-                coin_data = raw_bytes[i:i + coin_len]
+                coin_data = raw_bytes[i : i + coin_len]
                 i += coin_len
 
                 # Parse coin: denom at field 1, amount at field 2
@@ -3431,23 +3584,20 @@ def api_supply():
                 while j < len(coin_data):
                     field_tag = coin_data[j]
                     j += 1
-                    if field_tag == 0x0a:  # Field 1 (denom)
+                    if field_tag == 0x0A:  # Field 1 (denom)
                         denom_len = coin_data[j]
                         j += 1
-                        denom = coin_data[j:j + denom_len].decode('utf-8')
+                        denom = coin_data[j : j + denom_len].decode("utf-8")
                         j += denom_len
                     elif field_tag == 0x12:  # Field 2 (amount as string)
                         amount_len = coin_data[j]
                         j += 1
-                        amount = int(coin_data[j:j + amount_len].decode('utf-8'))
+                        amount = int(coin_data[j : j + amount_len].decode("utf-8"))
                         j += amount_len
                     else:
                         break
 
-                entry = {
-                    "denom": denom,
-                    "amount": str(amount)
-                }
+                entry = {"denom": denom, "amount": str(amount)}
                 if denom == config.DENOM:
                     total_aura = amount
                     entry["amount_formatted"] = f"{amount / 1_000_000:.2f} AURA"
@@ -3455,18 +3605,21 @@ def api_supply():
             else:
                 i += 1
 
-        return jsonify({
-            "total_supply": formatted_supply,
-            "primary_denom": config.DENOM,
-            "primary_supply": total_aura,
-            "primary_supply_formatted": f"{total_aura / 1_000_000:.2f} AURA"
-        })
+        return jsonify(
+            {
+                "total_supply": formatted_supply,
+                "primary_denom": config.DENOM,
+                "primary_supply": total_aura,
+                "primary_supply_formatted": f"{total_aura / 1_000_000:.2f} AURA",
+            }
+        )
     except Exception as e:
         logger.error(f"Supply fetch error: {e}")
         return jsonify({"error": str(e)}), 500
 
 
 # ==================== SEARCH ENDPOINTS ====================
+
 
 @app.route("/api/search", methods=["POST", "GET"])
 def search_endpoint():
@@ -3571,9 +3724,9 @@ def autocomplete_endpoint():
     if not prefix:
         return jsonify({"suggestions": []})
 
-    return jsonify({
-        "suggestions": search_engine.get_autocomplete_suggestions(prefix, limit)
-    })
+    return jsonify(
+        {"suggestions": search_engine.get_autocomplete_suggestions(prefix, limit)}
+    )
 
 
 @app.route("/api/search/recent", methods=["GET"])
@@ -3611,12 +3764,11 @@ def recent_searches_endpoint():
                     description: Search timestamp
     """
     limit = request.args.get("limit", 10, type=int)
-    return jsonify({
-        "recent": search_engine.get_recent_searches(limit)
-    })
+    return jsonify({"recent": search_engine.get_recent_searches(limit)})
 
 
 # ==================== RICH LIST ENDPOINTS ====================
+
 
 @app.route("/api/richlist", methods=["GET"])
 def richlist_endpoint():
@@ -3666,9 +3818,7 @@ def richlist_endpoint():
     limit = request.args.get("limit", 100, type=int)
     limit = min(limit, 1000)  # Cap at 1000
 
-    return jsonify({
-        "richlist": rich_list.get_rich_list(limit)
-    })
+    return jsonify({"richlist": rich_list.get_rich_list(limit)})
 
 
 @app.route("/api/richlist/refresh", methods=["POST"])
@@ -3701,12 +3851,11 @@ def richlist_refresh_endpoint():
     limit = request.args.get("limit", 100, type=int)
     limit = min(limit, 1000)
 
-    return jsonify({
-        "richlist": rich_list.get_rich_list(limit, refresh=True)
-    })
+    return jsonify({"richlist": rich_list.get_rich_list(limit, refresh=True)})
 
 
 # ==================== ADDRESS LABELING ====================
+
 
 @app.route("/api/address/<address>/label", methods=["GET"])
 def get_address_label(address):
@@ -3803,7 +3952,7 @@ def set_address_label(address):
         address=address,
         label=data["label"],
         category=data.get("category", "other"),
-        description=data.get("description", "")
+        description=data.get("description", ""),
     )
 
     db.add_address_label(label)
@@ -3811,6 +3960,7 @@ def set_address_label(address):
 
 
 # ==================== EXPORT ENDPOINTS ====================
+
 
 @app.route("/api/export/transactions/<address>", methods=["GET"])
 def export_transactions(address):
@@ -3837,14 +3987,19 @@ def export_transactions(address):
     """
     csv_data = export_manager.export_transactions_csv(address)
     if csv_data:
-        return csv_data, 200, {
-            "Content-Type": "text/csv",
-            "Content-Disposition": f"attachment; filename=transactions_{address}.csv"
-        }
+        return (
+            csv_data,
+            200,
+            {
+                "Content-Type": "text/csv",
+                "Content-Disposition": f"attachment; filename=transactions_{address}.csv",
+            },
+        )
     return jsonify({"error": "Unable to export"}), 404
 
 
 # ==================== GOVERNANCE ENDPOINTS ====================
+
 
 @app.route("/api/governance/proposals", methods=["GET"])
 def get_proposals_endpoint():
@@ -4071,6 +4226,7 @@ def get_governance_params_endpoint():
 
 
 # ==================== STAKING ENDPOINTS ====================
+
 
 @app.route("/api/staking/pool", methods=["GET"])
 def get_staking_pool_endpoint():
@@ -4323,6 +4479,7 @@ def get_staking_params_endpoint():
 
 # ==================== WEBSOCKET REAL-TIME UPDATES ====================
 
+
 @sock.route("/api/ws/updates")
 def websocket_updates(ws):
     """WebSocket endpoint for real-time updates"""
@@ -4347,11 +4504,7 @@ def websocket_updates(ws):
 
 def broadcast_update(update_type: str, data: Dict[str, Any]) -> None:
     """Broadcast update to all WebSocket clients"""
-    message = json.dumps({
-        "type": update_type,
-        "data": data,
-        "timestamp": time.time()
-    })
+    message = json.dumps({"type": update_type, "data": data, "timestamp": time.time()})
 
     with ws_lock:
         for client in list(ws_clients):
@@ -4363,6 +4516,7 @@ def broadcast_update(update_type: str, data: Dict[str, Any]) -> None:
 
 
 # ==================== METRICS ENDPOINTS ====================
+
 
 @app.route("/api/metrics/<metric_type>", methods=["GET"])
 def get_metric_history(metric_type):
@@ -4413,14 +4567,11 @@ def get_metric_history(metric_type):
     """
     hours = request.args.get("hours", 24, type=int)
     metrics = db.get_metrics(metric_type, hours)
-    return jsonify({
-        "metric_type": metric_type,
-        "period_hours": hours,
-        "data": metrics
-    })
+    return jsonify({"metric_type": metric_type, "period_hours": hours, "data": metrics})
 
 
 # ==================== HEALTH CHECK ====================
+
 
 @app.route("/health", methods=["GET"])
 def health_check():
@@ -4483,14 +4634,14 @@ def health_check():
     checks = {
         "rpc_connection": False,
         "node_synced": False,
-        "database_accessible": False
+        "database_accessible": False,
     }
     node_info = {
         "reachable": False,
         "synced": False,
         "latest_block_height": 0,
         "catching_up": True,
-        "rpc_url": NODE_URL
+        "rpc_url": NODE_URL,
     }
 
     # Check RPC connection and sync status
@@ -4501,7 +4652,9 @@ def health_check():
             status_data = response.json()
             sync_info = status_data.get("result", {}).get("sync_info", {})
             node_info["reachable"] = True
-            node_info["latest_block_height"] = int(sync_info.get("latest_block_height", 0))
+            node_info["latest_block_height"] = int(
+                sync_info.get("latest_block_height", 0)
+            )
             node_info["catching_up"] = sync_info.get("catching_up", True)
             node_info["synced"] = not node_info["catching_up"]
             checks["node_synced"] = node_info["synced"]
@@ -4535,18 +4688,23 @@ def health_check():
     # Calculate uptime
     uptime_seconds = time.time() - app.config.get("start_time", time.time())
 
-    return jsonify({
-        "status": status,
-        "version": "2.0.0",
-        "chain_id": config.CHAIN_ID,
-        "explorer": {
-            "status": "running",
-            "uptime_seconds": round(uptime_seconds, 2)
-        },
-        "node": node_info,
-        "checks": checks,
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    }), http_status
+    return (
+        jsonify(
+            {
+                "status": status,
+                "version": "2.0.0",
+                "chain_id": config.CHAIN_ID,
+                "explorer": {
+                    "status": "running",
+                    "uptime_seconds": round(uptime_seconds, 2),
+                },
+                "node": node_info,
+                "checks": checks,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        ),
+        http_status,
+    )
 
 
 @app.route("/ready", methods=["GET"])
@@ -4571,10 +4729,7 @@ def readiness_check():
       503:
         description: Service not ready
     """
-    checks = {
-        "rpc_reachable": False,
-        "database_ready": False
-    }
+    checks = {"rpc_reachable": False, "database_ready": False}
 
     # Check RPC is reachable (doesn't need to be synced for readiness)
     try:
@@ -4593,11 +4748,16 @@ def readiness_check():
     is_ready = all(checks.values())
     http_status = 200 if is_ready else 503
 
-    return jsonify({
-        "ready": is_ready,
-        "checks": checks,
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    }), http_status
+    return (
+        jsonify(
+            {
+                "ready": is_ready,
+                "checks": checks,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        ),
+        http_status,
+    )
 
 
 @app.route("/live", methods=["GET"])
@@ -4621,14 +4781,20 @@ def liveness_check():
               type: string
     """
     uptime_seconds = time.time() - app.config.get("start_time", time.time())
-    return jsonify({
-        "alive": True,
-        "uptime_seconds": round(uptime_seconds, 2),
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    }), 200
+    return (
+        jsonify(
+            {
+                "alive": True,
+                "uptime_seconds": round(uptime_seconds, 2),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        ),
+        200,
+    )
 
 
 # ==================== INFO ENDPOINT ====================
+
 
 @app.route("/", methods=["GET"])
 def explorer_info():
@@ -4668,50 +4834,54 @@ def explorer_info():
               type: number
               description: Unix timestamp
     """
-    return jsonify({
-        "name": "AURA Block Explorer",
-        "version": "2.0.0",
-        "chain_id": config.CHAIN_ID,
-        "denom": config.DENOM,
-        "features": {
-            "advanced_search": True,
-            "analytics": True,
-            "rich_list": True,
-            "address_labels": True,
-            "csv_export": True,
-            "websocket_updates": True,
-            "address_labeling": True,
-            "cosmos_sdk_compatible": True,
-            "governance": True,
-            "staking": True
-        },
-        "endpoints": {
-            "analytics": "/api/analytics/*",
-            "search": "/api/search",
-            "richlist": "/api/richlist",
-            "export": "/api/export/*",
-            "websocket": "/api/ws/updates",
-            "health": "/health",
-            "ready": "/ready",
-            "live": "/live",
-            "governance": "/api/governance/*",
-            "staking": "/api/staking/*",
-            "swagger_docs": "/api/docs",
-            "openapi_spec": "/apispec.json"
-        },
-        "node_url": NODE_URL,
-        "timestamp": time.time()
-    })
+    return jsonify(
+        {
+            "name": "AURA Block Explorer",
+            "version": "2.0.0",
+            "chain_id": config.CHAIN_ID,
+            "denom": config.DENOM,
+            "features": {
+                "advanced_search": True,
+                "analytics": True,
+                "rich_list": True,
+                "address_labels": True,
+                "csv_export": True,
+                "websocket_updates": True,
+                "address_labeling": True,
+                "cosmos_sdk_compatible": True,
+                "governance": True,
+                "staking": True,
+            },
+            "endpoints": {
+                "analytics": "/api/analytics/*",
+                "search": "/api/search",
+                "richlist": "/api/richlist",
+                "export": "/api/export/*",
+                "websocket": "/api/ws/updates",
+                "health": "/health",
+                "ready": "/ready",
+                "live": "/live",
+                "governance": "/api/governance/*",
+                "staking": "/api/staking/*",
+                "swagger_docs": "/api/docs",
+                "openapi_spec": "/apispec.json",
+            },
+            "node_url": NODE_URL,
+            "timestamp": time.time(),
+        }
+    )
 
 
 if __name__ == "__main__":
     # Record start time for uptime tracking
     app.config["start_time"] = time.time()
 
-    logger.info(f"Starting AURA Block Explorer")
+    logger.info("Starting AURA Block Explorer")
     logger.info(f"Chain ID: {config.CHAIN_ID}")
     logger.info(f"Node RPC URL: {NODE_URL}")
-    logger.info(f"Node API URL: {config.NODE_API_URL if hasattr(config, 'NODE_API_URL') else 'Not configured'}")
+    logger.info(
+        f"Node API URL: {config.NODE_API_URL if hasattr(config, 'NODE_API_URL') else 'Not configured'}"
+    )
     logger.info(f"Database: {DB_PATH}")
     logger.info(f"Port: {config.EXPLORER_PORT}")
 
@@ -4719,5 +4889,5 @@ if __name__ == "__main__":
         host=config.EXPLORER_HOST,
         port=config.EXPLORER_PORT,
         debug=config.DEBUG,
-        threaded=True
+        threaded=True,
     )

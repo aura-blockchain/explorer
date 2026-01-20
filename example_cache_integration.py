@@ -27,11 +27,11 @@ class CachedBlockExplorer:
         # Use multi-tier cache for best performance
         self.cache = MultiTierCache(redis_cache=redis_cache)
 
-        print(f"Explorer initialized with cache")
+        print("Explorer initialized with cache")
         if redis_cache.enabled and not redis_cache.fallback_mode:
             print(f"  ✓ Redis cache active at {redis_url}")
         else:
-            print(f"  ⚠ Using fallback MemoryCache (Redis unavailable)")
+            print("  ⚠ Using fallback MemoryCache (Redis unavailable)")
 
     def get_block(self, height: int) -> dict:
         """
@@ -114,11 +114,11 @@ class CachedBlockExplorer:
         # Try cache first
         cached_validators = self.cache.get(cache_key)
         if cached_validators is not None:
-            print(f"  ✓ Validator set from cache")
+            print("  ✓ Validator set from cache")
             return cached_validators
 
         # Cache miss - fetch from node
-        print(f"  ⊕ Fetching validator set from node...")
+        print("  ⊕ Fetching validator set from node...")
         validators = self._fetch_validators_from_node()
 
         # Cache for 1 minute
@@ -135,7 +135,7 @@ class CachedBlockExplorer:
     def clear_all_cache(self):
         """Clear all cached data"""
         self.cache.clear()
-        print(f"  ✗ All cache cleared")
+        print("  ✗ All cache cleared")
 
     def get_cache_stats(self) -> dict:
         """Get cache performance statistics"""
@@ -158,9 +158,7 @@ class CachedBlockExplorer:
         """Simulate fetching latest blocks"""
         time.sleep(0.2)  # Simulate network delay
         current_height = 1000
-        return [
-            self._fetch_block_from_node(current_height - i) for i in range(count)
-        ]
+        return [self._fetch_block_from_node(current_height - i) for i in range(count)]
 
     def _fetch_address_from_node(self, address: str) -> dict:
         """Simulate fetching address info"""
@@ -198,13 +196,13 @@ def demo_cache_performance():
 
     print("First request (cache miss):")
     start = time.time()
-    block = explorer.get_block(100)
+    _block = explorer.get_block(100)
     duration1 = time.time() - start
     print(f"  Time: {duration1*1000:.2f}ms")
 
     print("\nSecond request (cache hit):")
     start = time.time()
-    block = explorer.get_block(100)
+    _block = explorer.get_block(100)
     duration2 = time.time() - start
     print(f"  Time: {duration2*1000:.2f}ms")
 
@@ -217,13 +215,13 @@ def demo_cache_performance():
 
     print("First request (cache miss):")
     start = time.time()
-    blocks = explorer.get_latest_blocks(10)
+    _blocks = explorer.get_latest_blocks(10)
     duration1 = time.time() - start
     print(f"  Time: {duration1*1000:.2f}ms")
 
     print("\nSecond request (cache hit):")
     start = time.time()
-    blocks = explorer.get_latest_blocks(10)
+    _blocks = explorer.get_latest_blocks(10)
     duration2 = time.time() - start
     print(f"  Time: {duration2*1000:.2f}ms")
 
@@ -238,13 +236,13 @@ def demo_cache_performance():
 
     print("First request (cache miss):")
     start = time.time()
-    info = explorer.get_address_info(test_address)
+    _info = explorer.get_address_info(test_address)
     duration1 = time.time() - start
     print(f"  Time: {duration1*1000:.2f}ms")
 
     print("\nSecond request (cache hit):")
     start = time.time()
-    info = explorer.get_address_info(test_address)
+    _info = explorer.get_address_info(test_address)
     duration2 = time.time() - start
     print(f"  Time: {duration2*1000:.2f}ms")
 
@@ -258,7 +256,7 @@ def demo_cache_performance():
     explorer.invalidate_block_cache(100)
     print("After invalidation:")
     start = time.time()
-    block = explorer.get_block(100)
+    _block = explorer.get_block(100)
     duration = time.time() - start
     print(f"  Time: {duration*1000:.2f}ms (cache miss expected)")
 

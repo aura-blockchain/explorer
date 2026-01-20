@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CacheEntry:
     """Cache entry with metadata"""
+
     key: str
     value: Any
     timestamp: float
@@ -119,9 +120,7 @@ class RedisCache:
         """
         import os
 
-        self.redis_url = redis_url or os.getenv(
-            "REDIS_URL", "redis://localhost:6379/0"
-        )
+        self.redis_url = redis_url or os.getenv("REDIS_URL", "redis://localhost:6379/0")
         self.key_prefix = key_prefix
         self.enabled = False
         self.client = None
@@ -147,9 +146,7 @@ class RedisCache:
             logger.warning("redis-py not installed, using fallback MemoryCache")
             self.fallback_mode = True
         except Exception as e:
-            logger.warning(
-                f"Redis connection failed ({e}), using fallback MemoryCache"
-            )
+            logger.warning(f"Redis connection failed ({e}), using fallback MemoryCache")
             self.fallback_mode = True
             self.client = None
 
@@ -273,7 +270,6 @@ class RedisCache:
 
         try:
             info = self.client.info("stats")
-            keyspace = self.client.info("keyspace")
 
             # Count keys with our prefix
             pattern = f"{self.key_prefix}*"

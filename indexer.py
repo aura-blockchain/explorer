@@ -8,7 +8,7 @@ import logging
 import signal
 import sys
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import Optional
 from dataclasses import dataclass
 
 import asyncpg
@@ -21,6 +21,7 @@ logging.basicConfig(level=logging.INFO)
 @dataclass
 class IndexerState:
     """Current indexer state"""
+
     latest_indexed_height: int
     chain_latest_height: int
     is_syncing: bool
@@ -39,7 +40,7 @@ class BlockchainIndexer:
         rpc_url: str,
         api_url: str,
         batch_size: int = 100,
-        start_height: int = 1
+        start_height: int = 1,
     ):
         self.db_url = db_url
         self.rpc_url = rpc_url
@@ -61,7 +62,8 @@ class BlockchainIndexer:
     async def create_schema(self):
         """Create database schema if not exists"""
         async with self.pool.acquire() as conn:
-            await conn.execute("""
+            await conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS blocks (
                     height BIGINT PRIMARY KEY,
                     hash TEXT NOT NULL,
@@ -180,7 +182,8 @@ class BlockchainIndexer:
                 CREATE INDEX IF NOT EXISTS idx_dex_swaps_trader ON dex_swaps(trader_address);
                 CREATE INDEX IF NOT EXISTS idx_bridge_sender ON bridge_transfers(sender);
                 CREATE INDEX IF NOT EXISTS idx_proposals_status ON governance_proposals(status);
-            """)
+            """
+            )
         logger.info("Database schema created/verified")
 
     async def get_latest_indexed_height(self) -> int:
@@ -204,24 +207,22 @@ class BlockchainIndexer:
         try:
             # Get block data
             block_data = self.client.get_block(height)
-            if not block_data or 'result' not in block_data:
+            if not block_data or "result" not in block_data:
                 logger.warning(f"No data for block {height}")
                 return
 
-            result = block_data['result']
-            block = result.get('block', {})
-            header = block.get('header', {})
+            result = block_data["result"]
+            block = result.get("block", {})
+            header = block.get("header", {})
 
             # Parse timestamp
-            timestamp = datetime.fromisoformat(header['time'].replace('Z', '+00:00'))
-
-            # Get block results for events
-            block_results = self.client.get_block_results(height)
+            timestamp = datetime.fromisoformat(header["time"].replace("Z", "+00:00"))
 
             async with self.pool.acquire() as conn:
                 async with conn.transaction():
                     # Insert block
-                    await conn.execute("""
+                    await conn.execute(
+                        """
                         INSERT INTO blocks (height, hash, timestamp, proposer_address, num_txs, block_size)
                         VALUES ($1, $2, $3, $4, $5, $6)
                         ON CONFLICT (height) DO UPDATE SET
@@ -229,12 +230,17 @@ class BlockchainIndexer:
                             timestamp = EXCLUDED.timestamp,
                             proposer_address = EXCLUDED.proposer_address,
                             num_txs = EXCLUDED.num_txs
-                    """, height, header.get('last_block_id', {}).get('hash', ''),
-                        timestamp, header.get('proposer_address', ''),
-                        len(block.get('data', {}).get('txs', [])), 0)
+                    """,
+                        height,
+                        header.get("last_block_id", {}).get("hash", ""),
+                        timestamp,
+                        header.get("proposer_address", ""),
+                        len(block.get("data", {}).get("txs", [])),
+                        0,
+                    )
 
                     # Index transactions
-                    txs = block.get('data', {}).get('txs', [])
+                    txs = block.get("data", {}).get("txs", [])
                     for i, tx_raw in enumerate(txs):
                         await self.index_transaction(conn, tx_raw, height, timestamp, i)
 
@@ -255,22 +261,31 @@ class BlockchainIndexer:
         tx_raw: str,
         height: int,
         timestamp: datetime,
-        tx_index: int
+        tx_index: int,
     ):
         """Index a transaction"""
         try:
             # In production, decode tx_raw properly
             # For now, store basic info
             import hashlib
+
             tx_hash = hashlib.sha256(tx_raw.encode()).hexdigest()
 
-            await conn.execute("""
+            await conn.execute(
+                """
                 INSERT INTO transactions (
                     tx_hash, height, timestamp, sender, success, messages
                 )
                 VALUES ($1, $2, $3, $4, $5, $6)
                 ON CONFLICT (tx_hash) DO NOTHING
-            """, tx_hash, height, timestamp, None, True, {})
+            """,
+                tx_hash,
+                height,
+                timestamp,
+                None,
+                True,
+                {},
+            )
 
         except Exception as e:
             logger.error(f"Error indexing transaction at height {height}: {e}")
@@ -282,7 +297,8 @@ class BlockchainIndexer:
 
             async with self.pool.acquire() as conn:
                 for val in validators:
-                    await conn.execute("""
+                    await conn.execute(
+                        """
                         INSERT INTO validators (
                             address, consensus_address, moniker, commission_rate,
                             voting_power, jailed, status
@@ -293,10 +309,17 @@ class BlockchainIndexer:
                             jailed = EXCLUDED.jailed,
                             status = EXCLUDED.status,
                             updated_at = NOW()
-                    """, val.operator_address, val.consensus_address,
-                        val.description.get('moniker', ''),
-                        float(val.commission.get('commission_rates', {}).get('rate', 0)),
-                        val.voting_power, val.jailed, val.status)
+                    """,
+                        val.operator_address,
+                        val.consensus_address,
+                        val.description.get("moniker", ""),
+                        float(
+                            val.commission.get("commission_rates", {}).get("rate", 0)
+                        ),
+                        val.voting_power,
+                        val.jailed,
+                        val.status,
+                    )
 
         except Exception as e:
             logger.error(f"Error indexing validators at height {height}: {e}")
@@ -308,7 +331,8 @@ class BlockchainIndexer:
 
             async with self.pool.acquire() as conn:
                 for prop in proposals:
-                    await conn.execute("""
+                    await conn.execute(
+                        """
                         INSERT INTO governance_proposals (
                             proposal_id, title, status, submit_time,
                             voting_start_time, voting_end_time
@@ -317,11 +341,22 @@ class BlockchainIndexer:
                         ON CONFLICT (proposal_id) DO UPDATE SET
                             status = EXCLUDED.status,
                             updated_at = NOW()
-                    """, prop.proposal_id, prop.content.get('title', ''),
+                    """,
+                        prop.proposal_id,
+                        prop.content.get("title", ""),
                         prop.status,
-                        datetime.fromisoformat(prop.submit_time.replace('Z', '+00:00')),
-                        datetime.fromisoformat(prop.voting_start_time.replace('Z', '+00:00')) if prop.voting_start_time else None,
-                        datetime.fromisoformat(prop.voting_end_time.replace('Z', '+00:00')) if prop.voting_end_time else None)
+                        datetime.fromisoformat(prop.submit_time.replace("Z", "+00:00")),
+                        datetime.fromisoformat(
+                            prop.voting_start_time.replace("Z", "+00:00")
+                        )
+                        if prop.voting_start_time
+                        else None,
+                        datetime.fromisoformat(
+                            prop.voting_end_time.replace("Z", "+00:00")
+                        )
+                        if prop.voting_end_time
+                        else None,
+                    )
 
         except Exception as e:
             logger.error(f"Error indexing proposals: {e}")
@@ -332,7 +367,7 @@ class BlockchainIndexer:
 
         latest_indexed = await self.get_latest_indexed_height()
         chain_status = self.client.get_status()
-        chain_latest = int(chain_status['result']['sync_info']['latest_block_height'])
+        chain_latest = int(chain_status["result"]["sync_info"]["latest_block_height"])
 
         self.state.chain_latest_height = chain_latest
 
@@ -347,7 +382,9 @@ class BlockchainIndexer:
             elapsed = asyncio.get_event_loop().time() - start_time
 
             blocks_indexed = batch_end - current + 1
-            self.state.blocks_per_second = blocks_indexed / elapsed if elapsed > 0 else 0
+            self.state.blocks_per_second = (
+                blocks_indexed / elapsed if elapsed > 0 else 0
+            )
 
             logger.info(
                 f"Indexed blocks {current}-{batch_end} "
@@ -366,13 +403,17 @@ class BlockchainIndexer:
         while self.running:
             try:
                 chain_status = self.client.get_status()
-                chain_latest = int(chain_status['result']['sync_info']['latest_block_height'])
+                chain_latest = int(
+                    chain_status["result"]["sync_info"]["latest_block_height"]
+                )
                 latest_indexed = await self.get_latest_indexed_height()
 
                 self.state.chain_latest_height = chain_latest
 
                 if chain_latest > latest_indexed:
-                    logger.info(f"Indexing new blocks {latest_indexed + 1} to {chain_latest}")
+                    logger.info(
+                        f"Indexing new blocks {latest_indexed + 1} to {chain_latest}"
+                    )
                     await self.index_block_range(latest_indexed + 1, chain_latest)
 
                 await asyncio.sleep(5)  # Check every 5 seconds
@@ -407,8 +448,7 @@ async def main():
     import os
 
     db_url = os.getenv(
-        "DATABASE_URL",
-        "postgresql://explorer:password@localhost:5432/aura_explorer"
+        "DATABASE_URL", "postgresql://explorer:password@localhost:5432/aura_explorer"
     )
     rpc_url = os.getenv("NODE_RPC_URL", "http://localhost:26657")
     api_url = os.getenv("NODE_API_URL", "http://localhost:1317")

@@ -3,7 +3,6 @@ Comprehensive tests for cache.py
 Tests MemoryCache, RedisCache, MultiTierCache, and related utilities
 """
 
-import json
 import pytest
 import time
 import os
@@ -12,7 +11,6 @@ from cache import (
     MemoryCache,
     RedisCache,
     MultiTierCache,
-    CacheEntry,
     cache_key,
     cached,
     CacheWarmer,

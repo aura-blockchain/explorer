@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RateLimitRule:
     """Rate limit rule configuration"""
+
     requests: int  # Number of requests
     window: int  # Time window in seconds
     burst: int = 0  # Burst allowance
@@ -25,6 +26,7 @@ class RateLimitRule:
 @dataclass
 class RateLimitState:
     """Track rate limit state for a client"""
+
     requests: list[float]  # Timestamps of requests
     blocked_until: Optional[float] = None
 
@@ -231,7 +233,9 @@ class AbuseDetector:
 
     def reset_pattern(self, client_id: str) -> None:
         """Reset pattern tracking for client"""
-        keys_to_remove = [k for k in self.suspicious_patterns if k.startswith(client_id)]
+        keys_to_remove = [
+            k for k in self.suspicious_patterns if k.startswith(client_id)
+        ]
         for key in keys_to_remove:
             del self.suspicious_patterns[key]
 
@@ -266,7 +270,9 @@ def rate_limit(rule_name: str = "default"):
             response = f(*args, **kwargs)
             if hasattr(response, "headers") and info:
                 response.headers["X-RateLimit-Limit"] = str(info.get("limit", 0))
-                response.headers["X-RateLimit-Remaining"] = str(info.get("remaining", 0))
+                response.headers["X-RateLimit-Remaining"] = str(
+                    info.get("remaining", 0)
+                )
                 response.headers["X-RateLimit-Reset"] = str(info.get("reset", 0))
 
             return response

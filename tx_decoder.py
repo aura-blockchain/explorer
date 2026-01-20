@@ -8,18 +8,19 @@ from __future__ import annotations
 import json
 import base64
 import logging
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 
 # ==================== DATA MODELS ====================
 
+
 @dataclass
 class DecodedMessage:
     """Decoded transaction message"""
+
     type_url: str
     type_name: str  # Human-readable name
     sender: Optional[str]
@@ -31,6 +32,7 @@ class DecodedMessage:
 @dataclass
 class DecodedTransaction:
     """Fully decoded transaction"""
+
     tx_hash: str
     height: int
     timestamp: str
@@ -46,6 +48,7 @@ class DecodedTransaction:
 
 
 # ==================== MESSAGE TYPE REGISTRY ====================
+
 
 class MessageTypeRegistry:
     """Registry of known message types with decoders"""
@@ -184,6 +187,7 @@ class MessageTypeRegistry:
 
 # ==================== TRANSACTION DECODER ====================
 
+
 class TransactionDecoder:
     """Decode Cosmos SDK and Aura custom message types"""
 
@@ -227,7 +231,7 @@ class TransactionDecoder:
             fee_data = auth_info.get("fee", {})
             fee = {
                 "amount": fee_data.get("amount", []),
-                "gas_limit": int(fee_data.get("gas_limit", 0))
+                "gas_limit": int(fee_data.get("gas_limit", 0)),
             }
 
             # Extract gas
@@ -252,7 +256,7 @@ class TransactionDecoder:
                 gas_used=gas_used,
                 fee=fee,
                 memo=memo,
-                raw_log=raw_log
+                raw_log=raw_log,
             )
 
         except Exception as e:
@@ -289,14 +293,18 @@ class TransactionDecoder:
             return self._decode_dex_message(type_url, type_name, msg)
         elif type_url.startswith("/aura.bridge."):
             return self._decode_bridge_message(type_url, type_name, msg)
-        elif type_url.startswith("/aura.identity.") or type_url.startswith("/aura.vcregistry."):
+        elif type_url.startswith("/aura.identity.") or type_url.startswith(
+            "/aura.vcregistry."
+        ):
             return self._decode_identity_message(type_url, type_name, msg)
         else:
             return self._decode_generic_message(type_url, type_name, msg)
 
     # ==================== COSMOS SDK MESSAGE DECODERS ====================
 
-    def _decode_bank_message(self, type_url: str, type_name: str, msg: Dict) -> DecodedMessage:
+    def _decode_bank_message(
+        self, type_url: str, type_name: str, msg: Dict
+    ) -> DecodedMessage:
         """Decode bank module messages"""
         if "MsgSend" in type_url:
             return DecodedMessage(
@@ -306,9 +314,9 @@ class TransactionDecoder:
                 data={
                     "from": msg.get("from_address"),
                     "to": msg.get("to_address"),
-                    "recipient": msg.get("to_address")
+                    "recipient": msg.get("to_address"),
                 },
-                amount=msg.get("amount", [])
+                amount=msg.get("amount", []),
             )
         elif "MsgMultiSend" in type_url:
             return DecodedMessage(
@@ -317,13 +325,15 @@ class TransactionDecoder:
                 sender=None,
                 data={
                     "inputs": msg.get("inputs", []),
-                    "outputs": msg.get("outputs", [])
-                }
+                    "outputs": msg.get("outputs", []),
+                },
             )
         else:
             return self._decode_generic_message(type_url, type_name, msg)
 
-    def _decode_staking_message(self, type_url: str, type_name: str, msg: Dict) -> DecodedMessage:
+    def _decode_staking_message(
+        self, type_url: str, type_name: str, msg: Dict
+    ) -> DecodedMessage:
         """Decode staking module messages"""
         if "MsgDelegate" in type_url:
             return DecodedMessage(
@@ -332,9 +342,9 @@ class TransactionDecoder:
                 sender=msg.get("delegator_address"),
                 data={
                     "delegator": msg.get("delegator_address"),
-                    "validator": msg.get("validator_address")
+                    "validator": msg.get("validator_address"),
                 },
-                amount=[msg.get("amount", {})]
+                amount=[msg.get("amount", {})],
             )
         elif "MsgUndelegate" in type_url:
             return DecodedMessage(
@@ -343,9 +353,9 @@ class TransactionDecoder:
                 sender=msg.get("delegator_address"),
                 data={
                     "delegator": msg.get("delegator_address"),
-                    "validator": msg.get("validator_address")
+                    "validator": msg.get("validator_address"),
                 },
-                amount=[msg.get("amount", {})]
+                amount=[msg.get("amount", {})],
             )
         elif "MsgBeginRedelegate" in type_url:
             return DecodedMessage(
@@ -355,9 +365,9 @@ class TransactionDecoder:
                 data={
                     "delegator": msg.get("delegator_address"),
                     "validator_src": msg.get("validator_src_address"),
-                    "validator_dst": msg.get("validator_dst_address")
+                    "validator_dst": msg.get("validator_dst_address"),
                 },
-                amount=[msg.get("amount", {})]
+                amount=[msg.get("amount", {})],
             )
         elif "MsgCreateValidator" in type_url:
             return DecodedMessage(
@@ -368,14 +378,16 @@ class TransactionDecoder:
                     "validator": msg.get("validator_address"),
                     "description": msg.get("description", {}),
                     "commission": msg.get("commission", {}),
-                    "min_self_delegation": msg.get("min_self_delegation")
+                    "min_self_delegation": msg.get("min_self_delegation"),
                 },
-                amount=[msg.get("value", {})]
+                amount=[msg.get("value", {})],
             )
         else:
             return self._decode_generic_message(type_url, type_name, msg)
 
-    def _decode_distribution_message(self, type_url: str, type_name: str, msg: Dict) -> DecodedMessage:
+    def _decode_distribution_message(
+        self, type_url: str, type_name: str, msg: Dict
+    ) -> DecodedMessage:
         """Decode distribution module messages"""
         if "MsgWithdrawDelegatorReward" in type_url:
             return DecodedMessage(
@@ -384,22 +396,22 @@ class TransactionDecoder:
                 sender=msg.get("delegator_address"),
                 data={
                     "delegator": msg.get("delegator_address"),
-                    "validator": msg.get("validator_address")
-                }
+                    "validator": msg.get("validator_address"),
+                },
             )
         elif "MsgWithdrawValidatorCommission" in type_url:
             return DecodedMessage(
                 type_url=type_url,
                 type_name=type_name,
                 sender=msg.get("validator_address"),
-                data={
-                    "validator": msg.get("validator_address")
-                }
+                data={"validator": msg.get("validator_address")},
             )
         else:
             return self._decode_generic_message(type_url, type_name, msg)
 
-    def _decode_gov_message(self, type_url: str, type_name: str, msg: Dict) -> DecodedMessage:
+    def _decode_gov_message(
+        self, type_url: str, type_name: str, msg: Dict
+    ) -> DecodedMessage:
         """Decode governance module messages"""
         if "MsgSubmitProposal" in type_url:
             return DecodedMessage(
@@ -409,8 +421,8 @@ class TransactionDecoder:
                 data={
                     "proposer": msg.get("proposer"),
                     "content": msg.get("content", {}),
-                    "initial_deposit": msg.get("initial_deposit", [])
-                }
+                    "initial_deposit": msg.get("initial_deposit", []),
+                },
             )
         elif "MsgVote" in type_url:
             return DecodedMessage(
@@ -420,8 +432,8 @@ class TransactionDecoder:
                 data={
                     "voter": msg.get("voter"),
                     "proposal_id": msg.get("proposal_id"),
-                    "option": msg.get("option")
-                }
+                    "option": msg.get("option"),
+                },
             )
         elif "MsgDeposit" in type_url:
             return DecodedMessage(
@@ -430,14 +442,16 @@ class TransactionDecoder:
                 sender=msg.get("depositor"),
                 data={
                     "depositor": msg.get("depositor"),
-                    "proposal_id": msg.get("proposal_id")
+                    "proposal_id": msg.get("proposal_id"),
                 },
-                amount=msg.get("amount", [])
+                amount=msg.get("amount", []),
             )
         else:
             return self._decode_generic_message(type_url, type_name, msg)
 
-    def _decode_ibc_message(self, type_url: str, type_name: str, msg: Dict) -> DecodedMessage:
+    def _decode_ibc_message(
+        self, type_url: str, type_name: str, msg: Dict
+    ) -> DecodedMessage:
         """Decode IBC module messages"""
         if "MsgTransfer" in type_url:
             return DecodedMessage(
@@ -450,14 +464,16 @@ class TransactionDecoder:
                     "source_port": msg.get("source_port"),
                     "source_channel": msg.get("source_channel"),
                     "timeout_height": msg.get("timeout_height"),
-                    "timeout_timestamp": msg.get("timeout_timestamp")
+                    "timeout_timestamp": msg.get("timeout_timestamp"),
                 },
-                amount=[msg.get("token", {})]
+                amount=[msg.get("token", {})],
             )
         else:
             return self._decode_generic_message(type_url, type_name, msg)
 
-    def _decode_wasm_message(self, type_url: str, type_name: str, msg: Dict) -> DecodedMessage:
+    def _decode_wasm_message(
+        self, type_url: str, type_name: str, msg: Dict
+    ) -> DecodedMessage:
         """Decode CosmWasm messages"""
         if "MsgStoreCode" in type_url:
             return DecodedMessage(
@@ -466,8 +482,8 @@ class TransactionDecoder:
                 sender=msg.get("sender"),
                 data={
                     "sender": msg.get("sender"),
-                    "wasm_byte_code_size": len(msg.get("wasm_byte_code", ""))
-                }
+                    "wasm_byte_code_size": len(msg.get("wasm_byte_code", "")),
+                },
             )
         elif "MsgInstantiateContract" in type_url:
             return DecodedMessage(
@@ -479,9 +495,9 @@ class TransactionDecoder:
                     "admin": msg.get("admin"),
                     "code_id": msg.get("code_id"),
                     "label": msg.get("label"),
-                    "msg": self._decode_base64_json(msg.get("msg"))
+                    "msg": self._decode_base64_json(msg.get("msg")),
                 },
-                amount=msg.get("funds", [])
+                amount=msg.get("funds", []),
             )
         elif "MsgExecuteContract" in type_url:
             return DecodedMessage(
@@ -491,16 +507,18 @@ class TransactionDecoder:
                 data={
                     "sender": msg.get("sender"),
                     "contract": msg.get("contract"),
-                    "msg": self._decode_base64_json(msg.get("msg"))
+                    "msg": self._decode_base64_json(msg.get("msg")),
                 },
-                amount=msg.get("funds", [])
+                amount=msg.get("funds", []),
             )
         else:
             return self._decode_generic_message(type_url, type_name, msg)
 
     # ==================== AURA CUSTOM MESSAGE DECODERS ====================
 
-    def _decode_dex_message(self, type_url: str, type_name: str, msg: Dict) -> DecodedMessage:
+    def _decode_dex_message(
+        self, type_url: str, type_name: str, msg: Dict
+    ) -> DecodedMessage:
         """Decode Aura DEX messages"""
         if "MsgCreatePool" in type_url:
             return DecodedMessage(
@@ -511,8 +529,8 @@ class TransactionDecoder:
                     "creator": msg.get("creator"),
                     "token_a": msg.get("token_a"),
                     "token_b": msg.get("token_b"),
-                    "swap_fee": msg.get("swap_fee")
-                }
+                    "swap_fee": msg.get("swap_fee"),
+                },
             )
         elif "MsgSwap" in type_url:
             return DecodedMessage(
@@ -523,8 +541,8 @@ class TransactionDecoder:
                     "sender": msg.get("sender"),
                     "pool_id": msg.get("pool_id"),
                     "token_in": msg.get("token_in"),
-                    "token_out_min": msg.get("token_out_min")
-                }
+                    "token_out_min": msg.get("token_out_min"),
+                },
             )
         elif "MsgAddLiquidity" in type_url or "MsgRemoveLiquidity" in type_url:
             return DecodedMessage(
@@ -535,13 +553,15 @@ class TransactionDecoder:
                     "sender": msg.get("sender"),
                     "pool_id": msg.get("pool_id"),
                     "token_a": msg.get("token_a"),
-                    "token_b": msg.get("token_b")
-                }
+                    "token_b": msg.get("token_b"),
+                },
             )
         else:
             return self._decode_generic_message(type_url, type_name, msg)
 
-    def _decode_bridge_message(self, type_url: str, type_name: str, msg: Dict) -> DecodedMessage:
+    def _decode_bridge_message(
+        self, type_url: str, type_name: str, msg: Dict
+    ) -> DecodedMessage:
         """Decode Aura bridge messages"""
         if "MsgLockTokens" in type_url:
             return DecodedMessage(
@@ -551,9 +571,9 @@ class TransactionDecoder:
                 data={
                     "sender": msg.get("sender"),
                     "dest_chain": msg.get("dest_chain"),
-                    "dest_address": msg.get("dest_address")
+                    "dest_address": msg.get("dest_address"),
                 },
-                amount=[msg.get("amount", {})]
+                amount=[msg.get("amount", {})],
             )
         elif "MsgMintTokens" in type_url or "MsgBurnTokens" in type_url:
             return DecodedMessage(
@@ -564,14 +584,16 @@ class TransactionDecoder:
                     "sender": msg.get("sender"),
                     "recipient": msg.get("recipient"),
                     "source_chain": msg.get("source_chain"),
-                    "proof": "Merkle proof included"
+                    "proof": "Merkle proof included",
                 },
-                amount=[msg.get("amount", {})]
+                amount=[msg.get("amount", {})],
             )
         else:
             return self._decode_generic_message(type_url, type_name, msg)
 
-    def _decode_identity_message(self, type_url: str, type_name: str, msg: Dict) -> DecodedMessage:
+    def _decode_identity_message(
+        self, type_url: str, type_name: str, msg: Dict
+    ) -> DecodedMessage:
         """Decode Aura identity/VC messages"""
         if "MsgRegisterDID" in type_url or "MsgUpdateDID" in type_url:
             return DecodedMessage(
@@ -581,8 +603,8 @@ class TransactionDecoder:
                 data={
                     "did": msg.get("did"),
                     "controller": msg.get("controller"),
-                    "document": msg.get("did_document", {})
-                }
+                    "document": msg.get("did_document", {}),
+                },
             )
         elif "MsgIssueCredential" in type_url:
             return DecodedMessage(
@@ -593,8 +615,8 @@ class TransactionDecoder:
                     "issuer": msg.get("issuer"),
                     "holder": msg.get("holder"),
                     "credential_type": msg.get("credential_type"),
-                    "credential_data": msg.get("credential_data", {})
-                }
+                    "credential_data": msg.get("credential_data", {}),
+                },
             )
         elif "MsgRevokeCredential" in type_url:
             return DecodedMessage(
@@ -604,31 +626,28 @@ class TransactionDecoder:
                 data={
                     "issuer": msg.get("issuer"),
                     "credential_id": msg.get("credential_id"),
-                    "reason": msg.get("reason")
-                }
+                    "reason": msg.get("reason"),
+                },
             )
         else:
             return self._decode_generic_message(type_url, type_name, msg)
 
-    def _decode_generic_message(self, type_url: str, type_name: str, msg: Dict) -> DecodedMessage:
+    def _decode_generic_message(
+        self, type_url: str, type_name: str, msg: Dict
+    ) -> DecodedMessage:
         """Decode unknown/generic message"""
         # Try to find sender field (common patterns)
         sender = (
-            msg.get("sender") or
-            msg.get("from_address") or
-            msg.get("delegator_address") or
-            msg.get("creator") or
-            msg.get("signer") or
-            None
+            msg.get("sender")
+            or msg.get("from_address")
+            or msg.get("delegator_address")
+            or msg.get("creator")
+            or msg.get("signer")
+            or None
         )
 
         # Try to find amount field
-        amount = (
-            msg.get("amount") or
-            msg.get("funds") or
-            msg.get("value") or
-            []
-        )
+        amount = msg.get("amount") or msg.get("funds") or msg.get("value") or []
         if not isinstance(amount, list):
             amount = [amount]
 
@@ -637,7 +656,7 @@ class TransactionDecoder:
             type_name=type_name,
             sender=sender,
             data=msg,
-            amount=amount
+            amount=amount,
         )
 
     # ==================== HELPER METHODS ====================
@@ -647,7 +666,7 @@ class TransactionDecoder:
         if not base64_str:
             return {}
         try:
-            decoded = base64.b64decode(base64_str).decode('utf-8')
+            decoded = base64.b64decode(base64_str).decode("utf-8")
             return json.loads(decoded)
         except Exception as e:
             logger.error(f"Failed to decode base64 JSON: {e}")
@@ -661,10 +680,9 @@ class TransactionDecoder:
             summary += f" from {self._truncate_address(message.sender)}"
 
         if message.amount:
-            amounts_str = ", ".join([
-                f"{a.get('amount', '0')} {a.get('denom', '')}"
-                for a in message.amount
-            ])
+            amounts_str = ", ".join(
+                [f"{a.get('amount', '0')} {a.get('denom', '')}" for a in message.amount]
+            )
             summary += f" ({amounts_str})"
 
         return summary

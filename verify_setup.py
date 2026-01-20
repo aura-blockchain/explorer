@@ -23,10 +23,10 @@ def check_dependencies():
     """Check required dependencies"""
     print("\nChecking dependencies...")
     required = [
-        'flask',
-        'flask_cors',
-        'flask_sock',
-        'requests',
+        "flask",
+        "flask_cors",
+        "flask_sock",
+        "requests",
     ]
 
     missing = []
@@ -47,7 +47,7 @@ def check_config():
     try:
         from config import config
 
-        print(f"✓ Configuration loaded")
+        print("✓ Configuration loaded")
         print(f"  - Chain ID: {config.CHAIN_ID}")
         print(f"  - Denom: {config.DENOM}")
         print(f"  - RPC URL: {config.NODE_RPC_URL}")
@@ -64,13 +64,13 @@ def check_files():
     """Check required files exist"""
     print("\nChecking required files...")
     required_files = [
-        'config.py',
-        'explorer_backend.py',
-        'requirements.txt',
-        'Dockerfile',
-        'docker-compose.yml',
-        'test_explorer.py',
-        'README.md'
+        "config.py",
+        "explorer_backend.py",
+        "requirements.txt",
+        "Dockerfile",
+        "docker-compose.yml",
+        "test_explorer.py",
+        "README.md",
     ]
 
     missing = []
@@ -95,11 +95,8 @@ def check_database():
 
         # Test basic operations
         from explorer_backend import AddressLabel
-        label = AddressLabel(
-            address="aura1test",
-            label="Test",
-            category="test"
-        )
+
+        label = AddressLabel(address="aura1test", label="Test", category="test")
         db.add_address_label(label)
         retrieved = db.get_address_label("aura1test")
 
@@ -155,7 +152,7 @@ def check_flask_app():
 
         # Check routes
         routes = [rule.rule for rule in app.url_map.iter_rules()]
-        key_routes = ['/', '/health', '/api/search', '/api/analytics/dashboard']
+        key_routes = ["/", "/health", "/api/search", "/api/analytics/dashboard"]
 
         all_present = True
         for route in key_routes:

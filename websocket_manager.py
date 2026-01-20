@@ -19,9 +19,9 @@ class TendermintWebSocketClient:
     """Connect to Tendermint WebSocket for real-time events"""
 
     def __init__(self, ws_url: str):
-        self.ws_url = ws_url.replace('http://', 'ws://').replace('https://', 'wss://')
-        if not self.ws_url.endswith('/websocket'):
-            self.ws_url += '/websocket'
+        self.ws_url = ws_url.replace("http://", "ws://").replace("https://", "wss://")
+        if not self.ws_url.endswith("/websocket"):
+            self.ws_url += "/websocket"
 
         self.ws: Optional[websockets.WebSocketClientProtocol] = None
         self.running = False
@@ -49,9 +49,7 @@ class TendermintWebSocketClient:
             "jsonrpc": "2.0",
             "method": "subscribe",
             "id": subscription_id,
-            "params": {
-                "query": query
-            }
+            "params": {"query": query},
         }
 
         await self.ws.send(json.dumps(message))
@@ -82,13 +80,13 @@ class TendermintWebSocketClient:
 
     async def handle_message(self, data: Dict[str, Any]):
         """Handle incoming WebSocket message"""
-        if 'result' in data and isinstance(data['result'], dict):
-            result = data['result']
+        if "result" in data and isinstance(data["result"], dict):
+            result = data["result"]
 
             # Extract event data
-            if 'data' in result:
-                event_data = result['data']
-                event_type = event_data.get('type', 'unknown')
+            if "data" in result:
+                event_data = result["data"]
+                event_type = event_data.get("type", "unknown")
 
                 # Route to appropriate handler
                 handler = self.handlers.get(event_type)
@@ -125,22 +123,30 @@ class ExplorerWebSocketServer:
 
         try:
             # Send initial connection message
-            await websocket.send(json.dumps({
-                "type": "connection",
-                "status": "connected",
-                "timestamp": datetime.utcnow().isoformat()
-            }))
+            await websocket.send(
+                json.dumps(
+                    {
+                        "type": "connection",
+                        "status": "connected",
+                        "timestamp": datetime.utcnow().isoformat(),
+                    }
+                )
+            )
 
             # Keep connection alive
             async for message in websocket:
                 # Handle client messages (ping/pong, subscriptions)
                 try:
                     data = json.loads(message)
-                    if data.get('type') == 'ping':
-                        await websocket.send(json.dumps({
-                            "type": "pong",
-                            "timestamp": datetime.utcnow().isoformat()
-                        }))
+                    if data.get("type") == "ping":
+                        await websocket.send(
+                            json.dumps(
+                                {
+                                    "type": "pong",
+                                    "timestamp": datetime.utcnow().isoformat(),
+                                }
+                            )
+                        )
                 except Exception as e:
                     logger.error(f"Error handling client message: {e}")
 
@@ -172,36 +178,40 @@ class ExplorerWebSocketServer:
 
     async def broadcast_new_block(self, block_data: Dict[str, Any]):
         """Broadcast new block event"""
-        await self.broadcast({
-            "type": "new_block",
-            "data": block_data,
-            "timestamp": datetime.utcnow().isoformat()
-        })
+        await self.broadcast(
+            {
+                "type": "new_block",
+                "data": block_data,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+        )
 
     async def broadcast_new_transaction(self, tx_data: Dict[str, Any]):
         """Broadcast new transaction event"""
-        await self.broadcast({
-            "type": "new_transaction",
-            "data": tx_data,
-            "timestamp": datetime.utcnow().isoformat()
-        })
+        await self.broadcast(
+            {
+                "type": "new_transaction",
+                "data": tx_data,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+        )
 
     async def broadcast_validator_update(self, validator_data: Dict[str, Any]):
         """Broadcast validator set update"""
-        await self.broadcast({
-            "type": "validator_update",
-            "data": validator_data,
-            "timestamp": datetime.utcnow().isoformat()
-        })
+        await self.broadcast(
+            {
+                "type": "validator_update",
+                "data": validator_data,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+        )
 
     async def start(self):
         """Start WebSocket server"""
-        self.server = await websockets.serve(
-            self.register_client,
-            self.host,
-            self.port
+        self.server = await websockets.serve(self.register_client, self.host, self.port)
+        logger.info(
+            f"Explorer WebSocket server started on ws://{self.host}:{self.port}"
         )
-        logger.info(f"Explorer WebSocket server started on ws://{self.host}:{self.port}")
 
     async def stop(self):
         """Stop WebSocket server"""
@@ -217,7 +227,9 @@ class WebSocketManager:
     Bridges real-time blockchain events to explorer frontend
     """
 
-    def __init__(self, tendermint_url: str, server_host: str = "0.0.0.0", server_port: int = 8083):
+    def __init__(
+        self, tendermint_url: str, server_host: str = "0.0.0.0", server_port: int = 8083
+    ):
         self.tm_client = TendermintWebSocketClient(tendermint_url)
         self.server = ExplorerWebSocketServer(server_host, server_port)
         self.running = False
@@ -235,9 +247,11 @@ class WebSocketManager:
         await self.tm_client.subscribe("tm.event='ValidatorSetUpdates'")
 
         # Register event handlers
-        self.tm_client.register_handler('NewBlock', self.handle_new_block)
-        self.tm_client.register_handler('Tx', self.handle_new_transaction)
-        self.tm_client.register_handler('ValidatorSetUpdates', self.handle_validator_update)
+        self.tm_client.register_handler("NewBlock", self.handle_new_block)
+        self.tm_client.register_handler("Tx", self.handle_new_transaction)
+        self.tm_client.register_handler(
+            "ValidatorSetUpdates", self.handle_validator_update
+        )
 
         # Start server
         await self.server.start()
@@ -247,15 +261,15 @@ class WebSocketManager:
     async def handle_new_block(self, event_data: Dict[str, Any]):
         """Handle new block event from Tendermint"""
         try:
-            block = event_data.get('value', {}).get('block', {})
-            header = block.get('header', {})
+            block = event_data.get("value", {}).get("block", {})
+            header = block.get("header", {})
 
             block_info = {
-                "height": int(header.get('height', 0)),
-                "hash": header.get('last_block_id', {}).get('hash', ''),
-                "time": header.get('time', ''),
-                "proposer": header.get('proposer_address', ''),
-                "num_txs": len(block.get('data', {}).get('txs', []))
+                "height": int(header.get("height", 0)),
+                "hash": header.get("last_block_id", {}).get("hash", ""),
+                "time": header.get("time", ""),
+                "proposer": header.get("proposer_address", ""),
+                "num_txs": len(block.get("data", {}).get("txs", [])),
             }
 
             logger.info(f"New block: {block_info['height']}")
@@ -267,13 +281,13 @@ class WebSocketManager:
     async def handle_new_transaction(self, event_data: Dict[str, Any]):
         """Handle new transaction event from Tendermint"""
         try:
-            tx_result = event_data.get('value', {}).get('TxResult', {})
+            tx_result = event_data.get("value", {}).get("TxResult", {})
 
             tx_info = {
-                "hash": tx_result.get('tx', ''),
-                "height": int(tx_result.get('height', 0)),
-                "index": tx_result.get('index', 0),
-                "result": tx_result.get('result', {})
+                "hash": tx_result.get("tx", ""),
+                "height": int(tx_result.get("height", 0)),
+                "index": tx_result.get("index", 0),
+                "result": tx_result.get("result", {}),
             }
 
             logger.debug(f"New transaction: {tx_info['hash'][:16]}...")
@@ -285,12 +299,9 @@ class WebSocketManager:
     async def handle_validator_update(self, event_data: Dict[str, Any]):
         """Handle validator set update event"""
         try:
-            updates = event_data.get('value', {}).get('ValidatorUpdates', [])
+            updates = event_data.get("value", {}).get("ValidatorUpdates", [])
 
-            validator_info = {
-                "updates": updates,
-                "num_updates": len(updates)
-            }
+            validator_info = {"updates": updates, "num_updates": len(updates)}
 
             logger.info(f"Validator update: {validator_info['num_updates']} validators")
             await self.server.broadcast_validator_update(validator_info)

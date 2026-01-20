@@ -5,7 +5,7 @@ WebSocket support for real-time block explorer updates
 import asyncio
 import json
 import logging
-from typing import Dict, Set, Optional
+from typing import Dict, Set
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from enum import Enum
@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 class WSMessageType(Enum):
     """WebSocket message types"""
+
     SUBSCRIBE = "subscribe"
     UNSUBSCRIBE = "unsubscribe"
     NEW_BLOCK = "new_block"
@@ -31,6 +32,7 @@ class WSMessageType(Enum):
 @dataclass
 class WSMessage:
     """WebSocket message structure"""
+
     type: str
     data: Dict
     timestamp: float = None
@@ -58,19 +60,23 @@ class SubscriptionManager:
         """Subscribe to new block notifications"""
         async with self._lock:
             self.subscriptions["blocks"].add(ws)
-            logger.info(f"Client subscribed to blocks. Total: {len(self.subscriptions['blocks'])}")
+            logger.info(
+                f"Client subscribed to blocks. Total: {len(self.subscriptions['blocks'])}"
+            )
 
     async def unsubscribe_blocks(self, ws) -> None:
         """Unsubscribe from block notifications"""
         async with self._lock:
             self.subscriptions["blocks"].discard(ws)
-            logger.info(f"Client unsubscribed from blocks")
+            logger.info("Client unsubscribed from blocks")
 
     async def subscribe_transactions(self, ws) -> None:
         """Subscribe to new transaction notifications"""
         async with self._lock:
             self.subscriptions["transactions"].add(ws)
-            logger.info(f"Client subscribed to transactions. Total: {len(self.subscriptions['transactions'])}")
+            logger.info(
+                f"Client subscribed to transactions. Total: {len(self.subscriptions['transactions'])}"
+            )
 
     async def unsubscribe_transactions(self, ws) -> None:
         """Unsubscribe from transaction notifications"""
@@ -131,7 +137,7 @@ class WebSocketHandler:
         self.active_connections: Set = set()
 
         # Register WebSocket endpoint
-        @self.sock.route('/ws')
+        @self.sock.route("/ws")
         def websocket(ws):
             return self.handle_connection(ws)
 
@@ -155,7 +161,9 @@ class WebSocketHandler:
             # Clean up
             asyncio.run(self.subscription_manager.unsubscribe_all(ws))
             self.active_connections.discard(ws)
-            logger.info(f"WebSocket disconnected. Remaining: {len(self.active_connections)}")
+            logger.info(
+                f"WebSocket disconnected. Remaining: {len(self.active_connections)}"
+            )
 
     async def handle_message(self, ws, raw_message: str) -> None:
         """Handle incoming WebSocket message"""
@@ -169,10 +177,9 @@ class WebSocketHandler:
             elif msg_type == WSMessageType.UNSUBSCRIBE.value:
                 await self.handle_unsubscribe(ws, payload)
             elif msg_type == WSMessageType.PING.value:
-                await self.send_message(ws, WSMessage(
-                    type=WSMessageType.PONG.value,
-                    data={}
-                ))
+                await self.send_message(
+                    ws, WSMessage(type=WSMessageType.PONG.value, data={})
+                )
             else:
                 await self.send_error(ws, f"Unknown message type: {msg_type}")
 
@@ -188,26 +195,26 @@ class WebSocketHandler:
 
         if channel == "blocks":
             await self.subscription_manager.subscribe_blocks(ws)
-            await self.send_message(ws, WSMessage(
-                type="subscribed",
-                data={"channel": "blocks"}
-            ))
+            await self.send_message(
+                ws, WSMessage(type="subscribed", data={"channel": "blocks"})
+            )
         elif channel == "transactions":
             await self.subscription_manager.subscribe_transactions(ws)
-            await self.send_message(ws, WSMessage(
-                type="subscribed",
-                data={"channel": "transactions"}
-            ))
+            await self.send_message(
+                ws, WSMessage(type="subscribed", data={"channel": "transactions"})
+            )
         elif channel == "address":
             address = payload.get("address")
             if not address:
                 await self.send_error(ws, "Address required for address subscription")
                 return
             await self.subscription_manager.subscribe_address(ws, address)
-            await self.send_message(ws, WSMessage(
-                type="subscribed",
-                data={"channel": "address", "address": address}
-            ))
+            await self.send_message(
+                ws,
+                WSMessage(
+                    type="subscribed", data={"channel": "address", "address": address}
+                ),
+            )
         else:
             await self.send_error(ws, f"Unknown channel: {channel}")
 
@@ -224,10 +231,9 @@ class WebSocketHandler:
             if address:
                 await self.subscription_manager.unsubscribe_address(ws, address)
 
-        await self.send_message(ws, WSMessage(
-            type="unsubscribed",
-            data={"channel": channel}
-        ))
+        await self.send_message(
+            ws, WSMessage(type="unsubscribed", data={"channel": channel})
+        )
 
     async def send_message(self, ws, message: WSMessage) -> None:
         """Send message to WebSocket"""
@@ -238,17 +244,13 @@ class WebSocketHandler:
 
     async def send_error(self, ws, error: str) -> None:
         """Send error message to WebSocket"""
-        await self.send_message(ws, WSMessage(
-            type=WSMessageType.ERROR.value,
-            data={"error": error}
-        ))
+        await self.send_message(
+            ws, WSMessage(type=WSMessageType.ERROR.value, data={"error": error})
+        )
 
     async def broadcast_new_block(self, block_data: Dict) -> None:
         """Broadcast new block to all subscribers"""
-        message = WSMessage(
-            type=WSMessageType.NEW_BLOCK.value,
-            data=block_data
-        )
+        message = WSMessage(type=WSMessageType.NEW_BLOCK.value, data=block_data)
 
         subscribers = self.subscription_manager.get_block_subscribers()
         logger.info(f"Broadcasting block to {len(subscribers)} subscribers")
@@ -262,10 +264,7 @@ class WebSocketHandler:
 
     async def broadcast_new_transaction(self, tx_data: Dict) -> None:
         """Broadcast new transaction to all subscribers"""
-        message = WSMessage(
-            type=WSMessageType.NEW_TX.value,
-            data=tx_data
-        )
+        message = WSMessage(type=WSMessageType.NEW_TX.value, data=tx_data)
 
         subscribers = self.subscription_manager.get_transaction_subscribers()
 
@@ -285,7 +284,7 @@ class WebSocketHandler:
         """Notify subscribers of address activity"""
         message = WSMessage(
             type=WSMessageType.ADDRESS_ACTIVITY.value,
-            data={"address": address, "activity": activity_data}
+            data={"address": address, "activity": activity_data},
         )
 
         subscribers = self.subscription_manager.get_address_subscribers(address)
@@ -301,6 +300,10 @@ class WebSocketHandler:
         return {
             "active_connections": len(self.active_connections),
             "block_subscribers": len(self.subscription_manager.subscriptions["blocks"]),
-            "tx_subscribers": len(self.subscription_manager.subscriptions["transactions"]),
-            "address_subscriptions": len(self.subscription_manager.subscriptions["addresses"]),
+            "tx_subscribers": len(
+                self.subscription_manager.subscriptions["transactions"]
+            ),
+            "address_subscriptions": len(
+                self.subscription_manager.subscriptions["addresses"]
+            ),
         }

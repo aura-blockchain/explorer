@@ -48,7 +48,9 @@ def test_validators_endpoint(mock_get, client):
 
 @patch("requests.get")
 def test_search_endpoint(mock_get, client):
-    mock_get.return_value = make_rpc_mock({"result": {"block": {"header": {"height": "1"}, "data": {"txs": []}}}})
+    mock_get.return_value = make_rpc_mock(
+        {"result": {"block": {"header": {"height": "1"}, "data": {"txs": []}}}}
+    )
     resp = client.get("/api/search?q=1")
     assert resp.status_code == 200
     data = json.loads(resp.data.decode())
@@ -64,7 +66,9 @@ def test_account_not_found_graceful(mock_get, client):
 
 @patch("requests.get")
 def test_transaction_endpoint(mock_get, client):
-    mock_get.return_value = make_rpc_mock({"result": {"tx": {"hash": "ABC"}, "tx_result": {"code": 0}}})
+    mock_get.return_value = make_rpc_mock(
+        {"result": {"tx": {"hash": "ABC"}, "tx_result": {"code": 0}}}
+    )
     resp = client.get("/api/transactions/ABC")
     assert resp.status_code == 200
 
@@ -90,13 +94,8 @@ def test_supply_endpoint(mock_get, client):
     coin_data = bytes([0x0A, 0x05]) + b"uaura" + bytes([0x12, 0x07]) + b"1000000"
     raw = bytes([0x0A, len(coin_data)]) + coin_data
     value_b64 = __import__("base64").b64encode(raw).decode()
-    mock_get.return_value = make_rpc_mock({
-        "result": {
-            "response": {
-                "code": 0,
-                "value": value_b64
-            }
-        }
-    })
+    mock_get.return_value = make_rpc_mock(
+        {"result": {"response": {"code": 0, "value": value_b64}}}
+    )
     resp = client.get("/api/supply")
     assert resp.status_code == 200

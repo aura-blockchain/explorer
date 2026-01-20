@@ -20,9 +20,13 @@ class Config:
     #   python scripts/port_sentinel.py allocate explorer_grpc --project aura
     # Then set NODE_RPC_URL, NODE_API_URL, NODE_GRPC_URL environment variables.
     # -------------------------------------------------------------------------
-    NODE_RPC_URL = os.getenv("NODE_RPC_URL", "http://localhost:26657")  # DEV ONLY default
-    NODE_API_URL = os.getenv("NODE_API_URL", "http://localhost:1317")   # DEV ONLY default
-    NODE_GRPC_URL = os.getenv("NODE_GRPC_URL", "localhost:9090")        # DEV ONLY default
+    NODE_RPC_URL = os.getenv(
+        "NODE_RPC_URL", "http://localhost:26657"
+    )  # DEV ONLY default
+    NODE_API_URL = os.getenv(
+        "NODE_API_URL", "http://localhost:1317"
+    )  # DEV ONLY default
+    NODE_GRPC_URL = os.getenv("NODE_GRPC_URL", "localhost:9090")  # DEV ONLY default
 
     # AURA Chain Configuration
     CHAIN_ID = os.getenv("CHAIN_ID", "aura-mvp-1")
@@ -80,7 +84,8 @@ class Config:
     def to_dict(cls) -> Dict[str, Any]:
         """Convert configuration to dictionary"""
         return {
-            key: value for key, value in cls.__dict__.items()
+            key: value
+            for key, value in cls.__dict__.items()
             if not key.startswith("_") and not callable(value)
         }
 
@@ -107,6 +112,7 @@ class Config:
 
 class DevelopmentConfig(Config):
     """Development configuration"""
+
     DEBUG = True
     DB_PATH = ":memory:"
     LOG_LEVEL = "DEBUG"
@@ -114,6 +120,7 @@ class DevelopmentConfig(Config):
 
 class ProductionConfig(Config):
     """Production configuration"""
+
     DEBUG = False
     REQUIRE_API_KEY = True
     RATE_LIMIT_ENABLED = True
@@ -122,6 +129,7 @@ class ProductionConfig(Config):
 
 class TestConfig(Config):
     """Test configuration"""
+
     DB_PATH = ":memory:"
     NODE_RPC_URL = "http://localhost:26657"
     CHAIN_ID = "aura-testnet-1"

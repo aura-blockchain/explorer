@@ -7,9 +7,8 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
-from datetime import datetime
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 from decimal import Decimal
 
 import requests
@@ -21,9 +20,11 @@ logger = logging.getLogger(__name__)
 
 # ==================== DATA MODELS ====================
 
+
 @dataclass
 class Coin:
     """Token amount with denomination"""
+
     denom: str
     amount: str
 
@@ -35,6 +36,7 @@ class Coin:
 @dataclass
 class Validator:
     """Validator information"""
+
     operator_address: str
     consensus_address: str
     jailed: bool
@@ -53,6 +55,7 @@ class Validator:
 @dataclass
 class Delegation:
     """Delegation information"""
+
     delegator_address: str
     validator_address: str
     shares: str
@@ -62,6 +65,7 @@ class Delegation:
 @dataclass
 class Proposal:
     """Governance proposal"""
+
     proposal_id: int
     content: Dict[str, Any]
     status: str
@@ -76,6 +80,7 @@ class Proposal:
 @dataclass
 class Pool:
     """DEX liquidity pool"""
+
     pool_id: int
     token_a_denom: str
     token_b_denom: str
@@ -88,6 +93,7 @@ class Pool:
 @dataclass
 class DIDDocument:
     """Decentralized Identity Document"""
+
     did: str
     owner: str
     controller: List[str]
@@ -99,6 +105,7 @@ class DIDDocument:
 @dataclass
 class VerifiableCredential:
     """Verifiable Credential"""
+
     credential_id: str
     issuer: str
     holder: str
@@ -112,6 +119,7 @@ class VerifiableCredential:
 @dataclass
 class BridgeState:
     """Cross-chain bridge state"""
+
     total_locked: Dict[str, str]
     total_minted: Dict[str, str]
     supported_chains: List[str]
@@ -119,6 +127,7 @@ class BridgeState:
 
 
 # ==================== COSMOS SDK CLIENT ====================
+
 
 class CosmosSDKClient:
     """
@@ -132,7 +141,7 @@ class CosmosSDKClient:
         api_url: str,
         grpc_url: Optional[str] = None,
         timeout: int = 10,
-        retry_count: int = 3
+        retry_count: int = 3,
     ):
         """
         Initialize Cosmos SDK client
@@ -144,21 +153,19 @@ class CosmosSDKClient:
             timeout: Request timeout in seconds
             retry_count: Number of retries for failed requests
         """
-        self.rpc_url = rpc_url.rstrip('/')
-        self.api_url = api_url.rstrip('/')
+        self.rpc_url = rpc_url.rstrip("/")
+        self.api_url = api_url.rstrip("/")
         self.grpc_url = grpc_url
         self.timeout = timeout
 
         # Configure session with retry logic
         self.session = requests.Session()
         retry = Retry(
-            total=retry_count,
-            backoff_factor=0.5,
-            status_forcelist=[500, 502, 503, 504]
+            total=retry_count, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504]
         )
         adapter = HTTPAdapter(max_retries=retry)
-        self.session.mount('http://', adapter)
-        self.session.mount('https://', adapter)
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
 
     def _get(self, url: str, params: Optional[Dict] = None) -> Dict[str, Any]:
         """Make GET request with error handling"""
@@ -195,22 +202,21 @@ class CosmosSDKClient:
 
     def get_blockchain(self, min_height: int, max_height: int) -> Dict[str, Any]:
         """Get block metadata for height range"""
-        return self._rpc_get("blockchain", {
-            "minHeight": str(min_height),
-            "maxHeight": str(max_height)
-        })
+        return self._rpc_get(
+            "blockchain", {"minHeight": str(min_height), "maxHeight": str(max_height)}
+        )
 
     def get_transaction(self, tx_hash: str) -> Dict[str, Any]:
         """Get transaction by hash"""
         return self._rpc_get("tx", {"hash": f"0x{tx_hash}"})
 
-    def search_transactions(self, query: str, page: int = 1, per_page: int = 30) -> Dict[str, Any]:
+    def search_transactions(
+        self, query: str, page: int = 1, per_page: int = 30
+    ) -> Dict[str, Any]:
         """Search transactions by query"""
-        return self._rpc_get("tx_search", {
-            "query": query,
-            "page": str(page),
-            "per_page": str(per_page)
-        })
+        return self._rpc_get(
+            "tx_search", {"query": query, "page": str(page), "per_page": str(per_page)}
+        )
 
     def get_validators(self, height: Optional[int] = None) -> Dict[str, Any]:
         """Get validator set at height"""
@@ -223,7 +229,9 @@ class CosmosSDKClient:
         """Get balance of single denomination"""
         data = self._api_get(f"cosmos/bank/v1beta1/balances/{address}/{denom}")
         balance = data.get("balance", {})
-        return Coin(denom=balance.get("denom", denom), amount=balance.get("amount", "0"))
+        return Coin(
+            denom=balance.get("denom", denom), amount=balance.get("amount", "0")
+        )
 
     def get_balances(self, address: str) -> List[Coin]:
         """Get all token balances for address"""
@@ -246,9 +254,7 @@ class CosmosSDKClient:
     # ==================== STAKING MODULE ====================
 
     def get_staking_validators(
-        self,
-        status: Optional[str] = None,
-        pagination_limit: int = 100
+        self, status: Optional[str] = None, pagination_limit: int = 100
     ) -> List[Validator]:
         """
         Get validator set with optional status filter
@@ -276,7 +282,7 @@ class CosmosSDKClient:
                 unbonding_height=int(v.get("unbonding_height", 0)),
                 unbonding_time=v.get("unbonding_time", ""),
                 commission=v["commission"],
-                min_self_delegation=v["min_self_delegation"]
+                min_self_delegation=v["min_self_delegation"],
             )
             for v in validators
         ]
@@ -297,14 +303,12 @@ class CosmosSDKClient:
             unbonding_height=int(v.get("unbonding_height", 0)),
             unbonding_time=v.get("unbonding_time", ""),
             commission=v["commission"],
-            min_self_delegation=v["min_self_delegation"]
+            min_self_delegation=v["min_self_delegation"],
         )
 
     def get_delegations(self, delegator_address: str) -> List[Delegation]:
         """Get all delegations for address"""
-        data = self._api_get(
-            f"cosmos/staking/v1beta1/delegations/{delegator_address}"
-        )
+        data = self._api_get(f"cosmos/staking/v1beta1/delegations/{delegator_address}")
         delegations = data.get("delegation_responses", [])
 
         return [
@@ -313,9 +317,8 @@ class CosmosSDKClient:
                 validator_address=d["delegation"]["validator_address"],
                 shares=d["delegation"]["shares"],
                 balance=Coin(
-                    denom=d["balance"]["denom"],
-                    amount=d["balance"]["amount"]
-                )
+                    denom=d["balance"]["denom"], amount=d["balance"]["amount"]
+                ),
             )
             for d in delegations
         ]
@@ -333,9 +336,8 @@ class CosmosSDKClient:
                 validator_address=d["delegation"]["validator_address"],
                 shares=d["delegation"]["shares"],
                 balance=Coin(
-                    denom=d["balance"]["denom"],
-                    amount=d["balance"]["amount"]
-                )
+                    denom=d["balance"]["denom"], amount=d["balance"]["amount"]
+                ),
             )
             for d in delegations
         ]
@@ -356,7 +358,7 @@ class CosmosSDKClient:
         self,
         status: Optional[str] = None,
         voter: Optional[str] = None,
-        depositor: Optional[str] = None
+        depositor: Optional[str] = None,
     ) -> List[Proposal]:
         """
         Get governance proposals with optional filters
@@ -390,7 +392,7 @@ class CosmosSDKClient:
                     for c in p.get("total_deposit", [])
                 ],
                 voting_start_time=p.get("voting_start_time", ""),
-                voting_end_time=p.get("voting_end_time", "")
+                voting_end_time=p.get("voting_end_time", ""),
             )
             for p in proposals
         ]
@@ -412,14 +414,14 @@ class CosmosSDKClient:
                 for c in p.get("total_deposit", [])
             ],
             voting_start_time=p.get("voting_start_time", ""),
-            voting_end_time=p.get("voting_end_time", "")
+            voting_end_time=p.get("voting_end_time", ""),
         )
 
     def get_proposal_votes(self, proposal_id: int) -> Dict[str, Any]:
         """Get votes for proposal"""
         data = self._api_get(
             f"cosmos/gov/v1beta1/proposals/{proposal_id}/votes",
-            {"pagination.limit": "1000"}
+            {"pagination.limit": "1000"},
         )
         return data
 
@@ -431,15 +433,15 @@ class CosmosSDKClient:
     # ==================== DISTRIBUTION MODULE ====================
 
     def get_delegation_rewards(
-        self,
-        delegator_address: str,
-        validator_address: Optional[str] = None
+        self, delegator_address: str, validator_address: Optional[str] = None
     ) -> List[Coin]:
         """Get delegation rewards"""
         if validator_address:
             endpoint = f"cosmos/distribution/v1beta1/delegators/{delegator_address}/rewards/{validator_address}"
         else:
-            endpoint = f"cosmos/distribution/v1beta1/delegators/{delegator_address}/rewards"
+            endpoint = (
+                f"cosmos/distribution/v1beta1/delegators/{delegator_address}/rewards"
+            )
 
         data = self._api_get(endpoint)
 
@@ -478,7 +480,7 @@ class CosmosSDKClient:
                 controller=doc.get("controller", []),
                 verification_method=doc.get("verificationMethod", []),
                 authentication=doc.get("authentication", []),
-                service=doc.get("service", [])
+                service=doc.get("service", []),
             )
         except Exception as e:
             logger.error(f"Failed to get DID document: {e}")
@@ -499,7 +501,7 @@ class CosmosSDKClient:
                     status=vc.get("credentialStatus", {}).get("type", "active"),
                     issuance_date=vc.get("issuanceDate", ""),
                     expiration_date=vc.get("expirationDate"),
-                    credential_data=vc.get("credentialSubject", {})
+                    credential_data=vc.get("credentialSubject", {}),
                 )
                 for vc in credentials
             ]
@@ -521,7 +523,7 @@ class CosmosSDKClient:
                     token_a_reserve=p.get("token_a_reserve", "0"),
                     token_b_reserve=p.get("token_b_reserve", "0"),
                     total_shares=p.get("total_shares", "0"),
-                    swap_fee=p.get("swap_fee", "0")
+                    swap_fee=p.get("swap_fee", "0"),
                 )
                 for p in pools
             ]
@@ -542,7 +544,7 @@ class CosmosSDKClient:
                 token_a_reserve=p.get("token_a_reserve", "0"),
                 token_b_reserve=p.get("token_b_reserve", "0"),
                 total_shares=p.get("total_shares", "0"),
-                swap_fee=p.get("swap_fee", "0")
+                swap_fee=p.get("swap_fee", "0"),
             )
         except Exception as e:
             logger.error(f"Failed to get DEX pool: {e}")
@@ -558,7 +560,7 @@ class CosmosSDKClient:
                 total_locked=state.get("total_locked", {}),
                 total_minted=state.get("total_minted", {}),
                 supported_chains=state.get("supported_chains", []),
-                active_transfers=int(state.get("active_transfers", 0))
+                active_transfers=int(state.get("active_transfers", 0)),
             )
         except Exception as e:
             logger.error(f"Failed to get bridge state: {e}")
@@ -568,7 +570,7 @@ class CosmosSDKClient:
         self,
         sender: Optional[str] = None,
         status: Optional[str] = None,
-        limit: int = 50
+        limit: int = 50,
     ) -> List[Dict[str, Any]]:
         """Query bridge module for transfer history"""
         try:
@@ -588,8 +590,7 @@ class CosmosSDKClient:
         """Query WASM module for deployed contracts"""
         try:
             data = self._api_get(
-                "cosmwasm/wasm/v1/code",
-                {"pagination.limit": str(limit)}
+                "cosmwasm/wasm/v1/code", {"pagination.limit": str(limit)}
             )
             return data.get("code_infos", [])
         except Exception as e:
@@ -605,10 +606,13 @@ class CosmosSDKClient:
             logger.error(f"Failed to get contract info: {e}")
             return None
 
-    def query_contract(self, contract_address: str, query_msg: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def query_contract(
+        self, contract_address: str, query_msg: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Execute smart contract query"""
         try:
             import base64
+
             query_data = base64.b64encode(json.dumps(query_msg).encode()).decode()
             data = self._api_get(
                 f"cosmwasm/wasm/v1/contract/{contract_address}/smart/{query_data}"

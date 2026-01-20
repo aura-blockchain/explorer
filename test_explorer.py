@@ -4,7 +4,6 @@ Comprehensive test suite for verifying explorer functionality
 """
 
 import json
-import time
 from typing import Any, Dict
 
 import pytest
@@ -14,12 +13,11 @@ from explorer_backend import (
     ExplorerDatabase,
     AnalyticsEngine,
     SearchEngine,
-    RichListManager,
     ExportManager,
     SearchType,
     AddressLabel,
     app,
-    db
+    db,
 )
 
 
@@ -79,9 +77,7 @@ class TestExplorerDatabase:
 
         # Check tables exist
         cursor = db.conn.cursor()
-        cursor.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        )
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
         tables = {row[0] for row in cursor.fetchall()}
 
         assert "search_history" in tables
@@ -103,7 +99,7 @@ class TestExplorerDatabase:
             address="aura1test",
             label="Test Wallet",
             category="user",
-            description="Test description"
+            description="Test description",
         )
 
         db.add_address_label(label)
@@ -159,7 +155,7 @@ class TestSearchEngine:
         search_type = search_engine._identify_search_type(tx_hash)
         assert search_type == SearchType.TRANSACTION_ID
 
-    @patch('requests.get')
+    @patch("requests.get")
     def test_search_block_height(self, mock_get, search_engine):
         """Test block height search with mocked response"""
         mock_response = Mock()
@@ -171,9 +167,9 @@ class TestSearchEngine:
                         "height": "100",
                         "time": "2024-01-01T00:00:00Z",
                         "proposer_address": "test_proposer",
-                        "last_block_id": {"hash": "test_hash"}
+                        "last_block_id": {"hash": "test_hash"},
                     },
-                    "data": {"txs": []}
+                    "data": {"txs": []},
                 }
             }
         }
@@ -183,15 +179,13 @@ class TestSearchEngine:
         assert result is not None
         assert result["height"] == "100"
 
-    @patch('requests.get')
+    @patch("requests.get")
     def test_search_address(self, mock_get, search_engine):
         """Test address search with mocked response"""
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            "balances": [
-                {"denom": "uaura", "amount": "1000000"}
-            ]
+            "balances": [{"denom": "uaura", "amount": "1000000"}]
         }
         mock_get.return_value = mock_response
 
@@ -210,23 +204,19 @@ class TestAnalyticsEngine:
         db = ExplorerDatabase(":memory:")
         return AnalyticsEngine("http://localhost:26657", db)
 
-    @patch('requests.get')
+    @patch("requests.get")
     def test_fetch_stats(self, mock_get, analytics):
         """Test fetching blockchain stats"""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "result": {
-                "last_height": "1000"
-            }
-        }
+        mock_response.json.return_value = {"result": {"last_height": "1000"}}
         mock_get.return_value = mock_response
 
         stats = analytics._fetch_stats()
         assert stats is not None
         assert stats["total_blocks"] == 1000
 
-    @patch('requests.get')
+    @patch("requests.get")
     def test_fetch_blocks(self, mock_get, analytics):
         """Test fetching blocks"""
         mock_response = Mock()
@@ -235,12 +225,9 @@ class TestAnalyticsEngine:
             "result": {
                 "block_metas": [
                     {
-                        "header": {
-                            "height": "100",
-                            "time": "2024-01-01T00:00:00Z"
-                        },
+                        "header": {"height": "100", "time": "2024-01-01T00:00:00Z"},
                         "block_id": {"hash": "test_hash"},
-                        "num_txs": "5"
+                        "num_txs": "5",
                     }
                 ]
             }
@@ -258,13 +245,13 @@ class TestFlaskEndpoints:
     @pytest.fixture
     def client(self):
         """Create Flask test client"""
-        app.config['TESTING'] = True
+        app.config["TESTING"] = True
         with app.test_client() as client:
             yield client
 
     def test_explorer_info(self, client):
         """Test root endpoint"""
-        response = client.get('/')
+        response = client.get("/")
         assert response.status_code == 200
 
         data = json.loads(response.data)
@@ -274,36 +261,36 @@ class TestFlaskEndpoints:
 
     def test_health_check(self, client):
         """Test health check endpoint"""
-        with patch('requests.get') as mock_get:
+        with patch("requests.get") as mock_get:
             mock_response = Mock()
             mock_response.status_code = 200
             mock_get.return_value = mock_response
 
-            response = client.get('/health')
+            response = client.get("/health")
             assert response.status_code == 200
 
     def test_health_check_degraded(self, client):
         """Ensure degraded RPC still reports 200 with degraded status"""
-        with patch('requests.get', side_effect=requests.exceptions.ConnectionError()):
-            response = client.get('/health')
+        with patch("requests.get", side_effect=requests.exceptions.ConnectionError()):
+            response = client.get("/health")
             assert response.status_code == 200
             data = json.loads(response.data)
             assert data["status"] == "degraded"
 
     def test_search_endpoint_no_query(self, client):
         """Test search with no query"""
-        response = client.post('/api/search', json={})
+        response = client.post("/api/search", json={})
         assert response.status_code == 400
 
     def test_search_endpoint_with_query(self, client):
         """Test search with valid query"""
-        with patch('requests.get') as mock_get:
+        with patch("requests.get") as mock_get:
             mock_response = Mock()
             mock_response.status_code = 200
             mock_response.json.return_value = {"result": {}}
             mock_get.return_value = mock_response
 
-            response = client.post('/api/search', json={"query": "12345"})
+            response = client.post("/api/search", json={"query": "12345"})
             assert response.status_code == 200
 
             data = json.loads(response.data)
@@ -311,31 +298,34 @@ class TestFlaskEndpoints:
 
     def test_search_endpoint_get(self, client):
         """Ensure GET search parameter path works"""
+
         def fake_get(url, params=None, timeout=5):
             if url.endswith("/block?height=12345"):
-                return _MockResponse({
-                    "result": {
-                        "block": {
-                            "header": {
-                                "height": "12345",
-                                "time": "2024-01-01T00:00:00Z",
-                                "proposer_address": "aura1prop"
-                            },
-                            "data": {"txs": []}
+                return _MockResponse(
+                    {
+                        "result": {
+                            "block": {
+                                "header": {
+                                    "height": "12345",
+                                    "time": "2024-01-01T00:00:00Z",
+                                    "proposer_address": "aura1prop",
+                                },
+                                "data": {"txs": []},
+                            }
                         }
                     }
-                })
+                )
             raise AssertionError(f"Unexpected URL {url}")
 
-        with patch('requests.get', side_effect=fake_get):
-            response = client.get('/api/search?q=12345')
+        with patch("requests.get", side_effect=fake_get):
+            response = client.get("/api/search?q=12345")
             assert response.status_code == 200
             data = json.loads(response.data)
             assert data["results"]["height"] == "12345"
 
     def test_analytics_dashboard(self, client):
         """Test analytics dashboard endpoint"""
-        with patch('requests.get') as mock_get:
+        with patch("requests.get") as mock_get:
             mock_response = Mock()
             mock_response.status_code = 200
             mock_response.json.return_value = {
@@ -343,7 +333,7 @@ class TestFlaskEndpoints:
             }
             mock_get.return_value = mock_response
 
-            response = client.get('/api/analytics/dashboard')
+            response = client.get("/api/analytics/dashboard")
             assert response.status_code == 200
 
             data = json.loads(response.data)
@@ -352,15 +342,13 @@ class TestFlaskEndpoints:
 
     def test_richlist_endpoint(self, client):
         """Test rich list endpoint"""
-        with patch('requests.get') as mock_get:
+        with patch("requests.get") as mock_get:
             mock_response = Mock()
             mock_response.status_code = 200
-            mock_response.json.return_value = {
-                "blocks": []
-            }
+            mock_response.json.return_value = {"blocks": []}
             mock_get.return_value = mock_response
 
-            response = client.get('/api/richlist?limit=10')
+            response = client.get("/api/richlist?limit=10")
             assert response.status_code == 200
 
             data = json.loads(response.data)
@@ -375,7 +363,7 @@ class TestExportManager:
         """Create export manager for testing"""
         return ExportManager("http://localhost:26657")
 
-    @patch('requests.get')
+    @patch("requests.get")
     def test_export_transactions_csv(self, mock_get, export_manager):
         """Test CSV export"""
         mock_response = Mock()
@@ -389,7 +377,7 @@ class TestExportManager:
                     "recipient": "aura1recipient",
                     "amount": 1000,
                     "fee": 10,
-                    "type": "transfer"
+                    "type": "transfer",
                 }
             ]
         }
@@ -407,7 +395,7 @@ class TestIntegration:
     @pytest.fixture
     def client(self):
         """Create Flask test client"""
-        app.config['TESTING'] = True
+        app.config["TESTING"] = True
         with app.test_client() as client:
             yield client
 
@@ -422,18 +410,18 @@ class TestIntegration:
         ]
 
         for case in test_cases:
-            with patch('requests.get') as mock_get:
+            with patch("requests.get") as mock_get:
                 mock_response = Mock()
                 mock_response.status_code = 200
                 mock_response.json.return_value = {"result": {}}
                 mock_get.return_value = mock_response
 
-                response = client.post('/api/search', json={"query": case["query"]})
+                response = client.post("/api/search", json={"query": case["query"]})
                 assert response.status_code == 200
 
     def test_analytics_cache_behavior(self, client):
         """Test that analytics endpoints use caching"""
-        with patch('requests.get') as mock_get:
+        with patch("requests.get") as mock_get:
             mock_response = Mock()
             mock_response.status_code = 200
             mock_response.json.return_value = {
@@ -442,11 +430,11 @@ class TestIntegration:
             mock_get.return_value = mock_response
 
             # First call
-            response1 = client.get('/api/analytics/hashrate')
+            response1 = client.get("/api/analytics/hashrate")
             assert response1.status_code == 200
 
             # Second call should use cache
-            response2 = client.get('/api/analytics/hashrate')
+            response2 = client.get("/api/analytics/hashrate")
             assert response2.status_code == 200
 
 
@@ -455,46 +443,51 @@ class TestExplorerDataEndpoints:
 
     @pytest.fixture
     def client(self):
-        app.config['TESTING'] = True
+        app.config["TESTING"] = True
         with app.test_client() as client:
             yield client
 
     def test_blocks_endpoint_returns_data(self, client):
         """Blocks endpoint should return latest heights"""
+
         def fake_get(url, params=None, timeout=5):
             if url.endswith("/status"):
-                return _MockResponse({"result": {"sync_info": {"latest_block_height": "25"}}})
+                return _MockResponse(
+                    {"result": {"sync_info": {"latest_block_height": "25"}}}
+                )
             if "/blockchain" in url:
-                return _MockResponse({
-                    "result": {
-                        "block_metas": [
-                            {
-                                "header": {
-                                    "height": "25",
-                                    "time": "2024-01-01T00:25:00Z",
-                                    "proposer_address": "aura1prop"
+                return _MockResponse(
+                    {
+                        "result": {
+                            "block_metas": [
+                                {
+                                    "header": {
+                                        "height": "25",
+                                        "time": "2024-01-01T00:25:00Z",
+                                        "proposer_address": "aura1prop",
+                                    },
+                                    "block_id": {"hash": "hash25"},
+                                    "num_txs": "2",
+                                    "block_size": 1024,
                                 },
-                                "block_id": {"hash": "hash25"},
-                                "num_txs": "2",
-                                "block_size": 1024
-                            },
-                            {
-                                "header": {
-                                    "height": "24",
-                                    "time": "2024-01-01T00:24:00Z",
-                                    "proposer_address": "aura1prop2"
+                                {
+                                    "header": {
+                                        "height": "24",
+                                        "time": "2024-01-01T00:24:00Z",
+                                        "proposer_address": "aura1prop2",
+                                    },
+                                    "block_id": {"hash": "hash24"},
+                                    "num_txs": "1",
+                                    "block_size": 900,
                                 },
-                                "block_id": {"hash": "hash24"},
-                                "num_txs": "1",
-                                "block_size": 900
-                            }
-                        ]
+                            ]
+                        }
                     }
-                })
+                )
             raise AssertionError(f"Unexpected URL {url}")
 
-        with patch('requests.get', side_effect=fake_get):
-            response = client.get('/api/blocks?limit=2')
+        with patch("requests.get", side_effect=fake_get):
+            response = client.get("/api/blocks?limit=2")
             assert response.status_code == 200
             data = json.loads(response.data)
             assert data["blocks"][0]["height"] == 25
@@ -516,28 +509,28 @@ class TestExplorerDataEndpoints:
                                     "@type": "cosmos.bank.v1beta1.MsgSend",
                                     "from_address": "aura1sender",
                                     "to_address": "aura1recipient",
-                                    "amount": [{"denom": "uaura", "amount": "1000000"}]
+                                    "amount": [{"denom": "uaura", "amount": "1000000"}],
                                 }
                             ]
                         },
                         "auth_info": {
                             "fee": {"amount": [{"denom": "uaura", "amount": "500"}]}
-                        }
-                    }
+                        },
+                    },
                 },
                 {
                     "txhash": "DEF456",
                     "height": "11",
                     "timestamp": "2024-01-01T00:01:00Z",
                     "code": 5,
-                    "tx": {"body": {"messages": []}}
-                }
+                    "tx": {"body": {"messages": []}},
+                },
             ],
-            "pagination": {"total": "2"}
+            "pagination": {"total": "2"},
         }
 
-        with patch('requests.get', return_value=_MockResponse(tx_payload)):
-            response = client.get('/api/transactions?limit=20&status=success')
+        with patch("requests.get", return_value=_MockResponse(tx_payload)):
+            response = client.get("/api/transactions?limit=20&status=success")
             assert response.status_code == 200
             data = json.loads(response.data)
             assert len(data["transactions"]) == 1
@@ -553,24 +546,28 @@ class TestExplorerDataEndpoints:
                     "operator_address": "auraoper1",
                     "consensus_pubkey": {"key": "key1"},
                     "tokens": "2000000",
-                    "commission": {"commission_rates": {"rate": "0.100000000000000000"}},
+                    "commission": {
+                        "commission_rates": {"rate": "0.100000000000000000"}
+                    },
                     "jailed": False,
-                    "status": "BOND_STATUS_BONDED"
+                    "status": "BOND_STATUS_BONDED",
                 },
                 {
                     "description": {"moniker": "Validator B"},
                     "operator_address": "auraoper2",
                     "consensus_pubkey": {"key": "key2"},
                     "tokens": "500000",
-                    "commission": {"commission_rates": {"rate": "0.050000000000000000"}},
+                    "commission": {
+                        "commission_rates": {"rate": "0.050000000000000000"}
+                    },
                     "jailed": False,
-                    "status": "BOND_STATUS_BONDED"
-                }
+                    "status": "BOND_STATUS_BONDED",
+                },
             ]
         }
 
-        with patch('requests.get', return_value=_MockResponse(validators_payload)):
-            response = client.get('/api/validators?sort=commission')
+        with patch("requests.get", return_value=_MockResponse(validators_payload)):
+            response = client.get("/api/validators?sort=commission")
             assert response.status_code == 200
             data = json.loads(response.data)
             assert data["validators"][0]["commission"] == 0.1
@@ -578,44 +575,65 @@ class TestExplorerDataEndpoints:
 
     def test_stats_endpoint_combines_metrics(self, client):
         """Stats endpoint aggregates latest block, tx count, validator count"""
+
         def fake_get(url, params=None, timeout=5):
             if url.endswith("/status"):
-                return _MockResponse({"result": {"sync_info": {"latest_block_height": "2"}}})
+                return _MockResponse(
+                    {"result": {"sync_info": {"latest_block_height": "2"}}}
+                )
             if "/blockchain" in url:
-                return _MockResponse({
-                    "result": {
-                        "block_metas": [
-                            {
-                                "header": {
-                                    "height": "2",
-                                    "time": "2024-01-01T00:00:10Z",
-                                    "proposer_address": "aura1"
+                return _MockResponse(
+                    {
+                        "result": {
+                            "block_metas": [
+                                {
+                                    "header": {
+                                        "height": "2",
+                                        "time": "2024-01-01T00:00:10Z",
+                                        "proposer_address": "aura1",
+                                    },
+                                    "block_id": {"hash": "hash2"},
+                                    "num_txs": "1",
+                                    "block_size": 900,
                                 },
-                                "block_id": {"hash": "hash2"},
-                                "num_txs": "1",
-                                "block_size": 900
-                            },
-                            {
-                                "header": {
-                                    "height": "1",
-                                    "time": "2024-01-01T00:00:00Z",
-                                    "proposer_address": "aura2"
+                                {
+                                    "header": {
+                                        "height": "1",
+                                        "time": "2024-01-01T00:00:00Z",
+                                        "proposer_address": "aura2",
+                                    },
+                                    "block_id": {"hash": "hash1"},
+                                    "num_txs": "1",
+                                    "block_size": 800,
                                 },
-                                "block_id": {"hash": "hash1"},
-                                "num_txs": "1",
-                                "block_size": 800
+                            ]
+                        }
+                    }
+                )
+            if "cosmos/tx/v1beta1/txs" in url:
+                return _MockResponse(
+                    {"tx_responses": [], "pagination": {"total": "10"}}
+                )
+            if "cosmos/staking/v1beta1/validators" in url:
+                return _MockResponse(
+                    {
+                        "validators": [
+                            {
+                                "description": {"moniker": "Val"},
+                                "operator_address": "a1",
+                                "consensus_pubkey": {"key": "k"},
+                                "tokens": "1",
+                                "commission": {"commission_rates": {"rate": "0.1"}},
+                                "jailed": False,
+                                "status": "BOND_STATUS_BONDED",
                             }
                         ]
                     }
-                })
-            if "cosmos/tx/v1beta1/txs" in url:
-                return _MockResponse({"tx_responses": [], "pagination": {"total": "10"}})
-            if "cosmos/staking/v1beta1/validators" in url:
-                return _MockResponse({"validators": [{"description": {"moniker": "Val"}, "operator_address": "a1", "consensus_pubkey": {"key": "k"}, "tokens": "1", "commission": {"commission_rates": {"rate": "0.1"}}, "jailed": False, "status": "BOND_STATUS_BONDED"}]})
+                )
             raise AssertionError(f"Unexpected URL {url}")
 
-        with patch('requests.get', side_effect=fake_get):
-            response = client.get('/api/stats')
+        with patch("requests.get", side_effect=fake_get):
+            response = client.get("/api/stats")
             assert response.status_code == 200
             data = json.loads(response.data)
             assert data["latest_block"] == 2

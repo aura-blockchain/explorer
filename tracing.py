@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class TxTrace:
     """Transaction trace information"""
+
     tx_hash: str
     height: int
     timestamp: datetime
@@ -32,6 +33,7 @@ class TxTrace:
 @dataclass
 class AddressFlow:
     """Track flow of funds for an address"""
+
     address: str
     inbound: List[TxTrace] = field(default_factory=list)
     outbound: List[TxTrace] = field(default_factory=list)
@@ -77,7 +79,10 @@ class TransactionTracer:
         return trace
 
     def trace_address_flow(
-        self, address: str, start_time: Optional[datetime] = None, end_time: Optional[datetime] = None
+        self,
+        address: str,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
     ) -> AddressFlow:
         """
         Trace all flows for an address within a time range
@@ -98,7 +103,9 @@ class TransactionTracer:
         """
 
         cursor = self.db.conn.cursor()
-        cursor.execute(query, (address, address, start_time.timestamp(), end_time.timestamp()))
+        cursor.execute(
+            query, (address, address, start_time.timestamp(), end_time.timestamp())
+        )
 
         for row in cursor.fetchall():
             tx_data = dict(row)
@@ -115,7 +122,9 @@ class TransactionTracer:
 
         return flow
 
-    def trace_fund_path(self, start_address: str, end_address: str, max_hops: int = 5) -> List[List[str]]:
+    def trace_fund_path(
+        self, start_address: str, end_address: str, max_hops: int = 5
+    ) -> List[List[str]]:
         """
         Find paths of fund transfers between two addresses
         Uses BFS to find shortest paths
@@ -186,7 +195,10 @@ class TransactionTracer:
         return {
             "address": address,
             "depth": depth,
-            "origins": [{"address": addr, "total_amount": amount} for addr, amount in sorted_origins],
+            "origins": [
+                {"address": addr, "total_amount": amount}
+                for addr, amount in sorted_origins
+            ],
             "unique_sources": len(origins),
         }
 
@@ -204,7 +216,9 @@ class TransactionTracer:
         """
 
         cursor = self.db.conn.cursor()
-        cursor.execute(query, (address, address, start_time.timestamp(), end_time.timestamp()))
+        cursor.execute(
+            query, (address, address, start_time.timestamp(), end_time.timestamp())
+        )
 
         # Collect statistics
         stats = {
@@ -253,7 +267,9 @@ class TransactionTracer:
 
         # Find most common counterparty
         if counterparties:
-            stats["most_common_counterparty"] = max(counterparties.items(), key=lambda x: x[1])
+            stats["most_common_counterparty"] = max(
+                counterparties.items(), key=lambda x: x[1]
+            )
 
         return stats
 

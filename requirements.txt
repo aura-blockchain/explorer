@@ -14,7 +14,7 @@ requests==2.31.0
 simple-websocket==1.0.0
 
 # Additional utilities
-python-dateutil==2.8.2
+python-dateutil==2.9.0.post0
 
 # Production server (optional but recommended)
 gunicorn==21.2.0

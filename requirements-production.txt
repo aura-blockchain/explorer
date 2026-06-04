@@ -36,7 +36,7 @@ pytz==2023.3
 prometheus-client==0.19.0
 
 # Production server
-gunicorn==21.2.0
+gunicorn==26.0.0
 gevent==23.9.1
 
 # Development (optional)

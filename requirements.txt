@@ -11,7 +11,7 @@ flasgger==0.9.7.1
 requests==2.31.0
 
 # WebSocket support
-simple-websocket==1.0.0
+simple-websocket==1.1.0
 
 # Additional utilities
 python-dateutil==2.8.2

@@ -3,7 +3,7 @@
 
 # Flask web framework
 Flask==3.0.0
-flask-cors==4.0.0
+flask-cors==6.0.5
 flask-sock==0.7.0
 flasgger==0.9.7.1
 

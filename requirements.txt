@@ -8,7 +8,7 @@ flask-sock==0.7.0
 flasgger==0.9.7.1
 
 # HTTP requests
-requests==2.31.0
+requests==2.34.2
 
 # WebSocket support
 simple-websocket==1.0.0

@@ -15,7 +15,7 @@ aiohttp==3.9.1
 
 # Database
 psycopg2-binary==2.9.9
-SQLAlchemy==2.0.23
+SQLAlchemy==2.0.52
 
 # Redis caching
 redis==5.0.1
